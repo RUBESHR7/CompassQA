@@ -9,16 +9,19 @@ const LandingPage = ({ onStart }) => {
             <span className="text-gradient">Compass QA</span>
             <br />
             Is The Future of
+            <br />
+            Test Automation
+          </h1>
 
-            <p className="hero-subtitle">
-              Transform user stories into comprehensive test suites with AI-driven precision.
-              Experience the next generation of quality assurance.
-            </p>
+          <p className="hero-subtitle">
+            Transform user stories into comprehensive test suites with AI-driven precision.
+            Experience the next generation of quality assurance.
+          </p>
 
-            <button className="btn-start" onClick={onStart}>
-              Get Started
-              <ArrowRight size={20} />
-            </button>
+          <button className="btn-start" onClick={onStart}>
+            Get Started
+            <ArrowRight size={20} />
+          </button>
         </div >
 
         <div className="hero-visuals">
