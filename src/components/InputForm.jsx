@@ -1,15 +1,16 @@
-import React, { useState, useRef } from 'react';
-import { Upload, FileText, Settings, X, ChevronDown } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Upload, FileText, Settings, X, ChevronDown, Eye, Maximize2 } from 'lucide-react';
 
 const InputForm = ({ onGenerate }) => {
   const [userStory, setUserStory] = useState('');
   const [testCaseId, setTestCaseId] = useState('TC_001');
-  const [screenshots, setScreenshots] = useState([]);
+  const [screenshots, setScreenshots] = useState([]); // Array of { file: File, url: string }
   const [numTestCases, setNumTestCases] = useState(5);
   const [isDragging, setIsDragging] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null); // URL of image to preview
   const fileInputRef = useRef(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handlePaste = (e) => {
       const items = e.clipboardData.items;
       const imageFiles = [];
@@ -22,13 +23,20 @@ const InputForm = ({ onGenerate }) => {
       }
 
       if (imageFiles.length > 0) {
-        setScreenshots(prev => [...prev, ...imageFiles]);
+        handleFiles(imageFiles);
       }
     };
 
     window.addEventListener('paste', handlePaste);
     return () => {
       window.removeEventListener('paste', handlePaste);
+    };
+  }, []);
+
+  // Cleanup URLs on unmount
+  useEffect(() => {
+    return () => {
+      screenshots.forEach(s => URL.revokeObjectURL(s.url));
     };
   }, []);
 
@@ -55,16 +63,27 @@ const InputForm = ({ onGenerate }) => {
 
   const handleFiles = (files) => {
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
-    setScreenshots(prev => [...prev, ...imageFiles]);
+    const newScreenshots = imageFiles.map(file => ({
+      file,
+      url: URL.createObjectURL(file)
+    }));
+    setScreenshots(prev => [...prev, ...newScreenshots]);
   };
 
   const removeScreenshot = (index) => {
-    setScreenshots(prev => prev.filter((_, i) => i !== index));
+    setScreenshots(prev => {
+      const newScreenshots = [...prev];
+      URL.revokeObjectURL(newScreenshots[index].url);
+      newScreenshots.splice(index, 1);
+      return newScreenshots;
+    });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onGenerate({ userStory, testCaseId, screenshots, numTestCases });
+    // Extract just the File objects for the API
+    const filesOnly = screenshots.map(s => s.file);
+    onGenerate({ userStory, testCaseId, screenshots: filesOnly, numTestCases });
   };
 
   return (
@@ -150,10 +169,13 @@ const InputForm = ({ onGenerate }) => {
           </div>
 
           {screenshots.length > 0 && (
-            <div className="file-list">
-              {screenshots.map((file, index) => (
-                <div key={index} className="file-item">
-                  <span className="file-name">{file.name}</span>
+            <div className="thumbnail-grid">
+              {screenshots.map((item, index) => (
+                <div key={index} className="thumbnail-item" onClick={() => setPreviewImage(item.url)}>
+                  <img src={item.url} alt={`Screenshot ${index + 1}`} />
+                  <div className="thumbnail-overlay">
+                    <Maximize2 size={16} />
+                  </div>
                   <button
                     type="button"
                     className="remove-btn"
@@ -175,6 +197,18 @@ const InputForm = ({ onGenerate }) => {
           Generate Test Cases
         </button>
       </form>
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div className="modal-overlay" onClick={() => setPreviewImage(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setPreviewImage(null)}>
+              <X size={24} />
+            </button>
+            <img src={previewImage} alt="Full Preview" />
+          </div>
+        </div>
+      )}
 
       <style>{`
         .input-form-container {
@@ -286,30 +320,132 @@ const InputForm = ({ onGenerate }) => {
           margin-top: 4px;
         }
 
-        .file-list {
-          display: flex;
-          flex-wrap: wrap;
-          gap: var(--spacing-sm);
+        /* Thumbnail Grid */
+        .thumbnail-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+          gap: var(--spacing-md);
+          margin-top: var(--spacing-md);
         }
 
-        .file-item {
-          background: rgba(255, 255, 255, 0.05);
-          padding: 4px 12px;
-          border-radius: var(--radius-full);
-          font-size: 0.8rem;
+        .thumbnail-item {
+          position: relative;
+          aspect-ratio: 1;
+          border-radius: var(--radius-md);
+          overflow: hidden;
+          cursor: pointer;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .thumbnail-item img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transition: transform var(--transition-fast);
+        }
+
+        .thumbnail-item:hover img {
+          transform: scale(1.05);
+        }
+
+        .thumbnail-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.4);
           display: flex;
           align-items: center;
-          gap: var(--spacing-sm);
+          justify-content: center;
+          opacity: 0;
+          transition: opacity var(--transition-fast);
+          color: white;
+        }
+
+        .thumbnail-item:hover .thumbnail-overlay {
+          opacity: 1;
         }
 
         .remove-btn {
-          color: var(--text-muted);
-          padding: 2px;
+          position: absolute;
+          top: 4px;
+          right: 4px;
+          background: rgba(0, 0, 0, 0.6);
+          color: white;
+          border: none;
+          border-radius: 50%;
+          width: 20px;
+          height: 20px;
           display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          z-index: 10;
+          transition: background var(--transition-fast);
         }
 
         .remove-btn:hover {
-          color: #ef4444;
+          background: #ef4444;
+        }
+
+        /* Modal */
+        .modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.85);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          backdrop-filter: blur(4px);
+          animation: fadeIn 0.2s ease-out;
+        }
+
+        .modal-content {
+          position: relative;
+          max-width: 90vw;
+          max-height: 90vh;
+          border-radius: var(--radius-lg);
+          overflow: hidden;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+          animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .modal-content img {
+          display: block;
+          max-width: 100%;
+          max-height: 90vh;
+          object-fit: contain;
+        }
+
+        .modal-close {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          background: rgba(0, 0, 0, 0.5);
+          color: white;
+          border: none;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: background var(--transition-fast);
+          z-index: 10;
+        }
+
+        .modal-close:hover {
+          background: rgba(255, 255, 255, 0.2);
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+          from { transform: scale(0.95); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
         }
 
         /* Generate Button */
