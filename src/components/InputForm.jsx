@@ -337,11 +337,13 @@ const InputForm = ({ onGenerate }) => {
 
           .bento-grid {
             grid-template-columns: 1fr;
+            grid-template-rows: auto;
             gap: var(--spacing-md);
           }
           
           .story-card, .config-column, .upload-card, .btn-generate {
             grid-column: 1;
+            grid-row: auto;
           }
 
           .bento-card {
