@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Compass, Github, Twitter } from 'lucide-react';
 
-const Layout = ({ children }) => {
+const Layout = ({ children, onLogoClick, onDocsClick, onHistoryClick }) => {
   return (
     <div className="layout">
       <header className="header glass-panel">
@@ -15,9 +15,9 @@ const Layout = ({ children }) => {
           </Link>
 
           <nav className="nav-links">
+            <Link to="/app" className="nav-link">New Project</Link>
+            <Link to="/history" className="nav-link">History</Link>
             <Link to="/docs" className="nav-link">Documentation</Link>
-            <a href="#" className="nav-link">Pricing</a>
-            <a href="#" className="nav-link">Enterprise</a>
           </nav>
 
           <div className="social-links">

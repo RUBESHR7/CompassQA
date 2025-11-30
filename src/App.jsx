@@ -11,11 +11,13 @@ const InputForm = lazy(() => import('./components/InputForm'));
 const ResultsView = lazy(() => import('./components/ResultsView'));
 const LandingPage = lazy(() => import('./components/LandingPage'));
 const Documentation = lazy(() => import('./components/Documentation'));
+const History = lazy(() => import('./components/History'));
 
 function App() {
   const [testCases, setTestCases] = useState(null);
   const [filename, setFilename] = useState("TestCases.xlsx");
   const [loading, setLoading] = useState(false);
+  const [history, setHistory] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -31,6 +33,15 @@ function App() {
         console.error("Failed to load saved test cases", e);
       }
     }
+
+    const savedHistory = localStorage.getItem('compass_qa_history');
+    if (savedHistory) {
+      try {
+        setHistory(JSON.parse(savedHistory));
+      } catch (e) {
+        console.error("Failed to load history", e);
+      }
+    }
   }, []);
 
   // Save to localStorage on change
@@ -39,6 +50,11 @@ function App() {
       localStorage.setItem('compass_qa_test_cases', JSON.stringify({ testCases, filename }));
     }
   }, [testCases, filename]);
+
+  // Save history to localStorage
+  useEffect(() => {
+    localStorage.setItem('compass_qa_history', JSON.stringify(history));
+  }, [history]);
 
   const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -53,8 +69,19 @@ function App() {
       const result = await generateTestCases(data.userStory, data.screenshots, data.numTestCases, API_KEY);
       setTestCases(result.testCases);
       setFilename(result.suggestedFilename);
+
+      // Add to history
+      const newHistoryItem = {
+        id: Date.now().toString(),
+        date: new Date().toISOString(),
+        userStory: data.userStory,
+        testCases: result.testCases,
+        filename: result.suggestedFilename
+      };
+
+      setHistory(prev => [newHistoryItem, ...prev]);
+
       toast.success("Test cases generated successfully!");
-      // Navigate to app view if not already there (though we are likely there)
     } catch (error) {
       console.error("Error generating test cases:", error);
       toast.error(`Failed to generate test cases: ${error.message}`);
@@ -74,6 +101,30 @@ function App() {
     setTestCases(null);
     localStorage.removeItem('compass_qa_test_cases');
     toast.info("Project reset.");
+  };
+
+  const handleLoadHistory = (item) => {
+    setTestCases(item.testCases);
+    setFilename(item.filename);
+    navigate('/app');
+    toast.success("Project loaded from history");
+  };
+
+  const handleDeleteHistory = (id) => {
+    setHistory(prev => prev.filter(item => item.id !== id));
+    toast.success("History item deleted");
+  };
+
+  const handleHomeClick = () => {
+    navigate('/');
+  };
+
+  const handleDocsClick = () => {
+    navigate('/docs');
+  };
+
+  const handleHistoryClick = () => {
+    navigate('/history');
   };
 
   const LoadingSpinner = () => (
@@ -104,12 +155,21 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage onStart={() => navigate('/app')} />} />
           <Route path="/docs" element={
-            <Layout>
+            <Layout onLogoClick={handleHomeClick} onDocsClick={handleDocsClick} onHistoryClick={handleHistoryClick}>
               <Documentation />
             </Layout>
           } />
+          <Route path="/history" element={
+            <Layout onLogoClick={handleHomeClick} onDocsClick={handleDocsClick} onHistoryClick={handleHistoryClick}>
+              <History
+                history={history}
+                onLoad={handleLoadHistory}
+                onDelete={handleDeleteHistory}
+              />
+            </Layout>
+          } />
           <Route path="/app" element={
-            <Layout>
+            <Layout onLogoClick={handleHomeClick} onDocsClick={handleDocsClick} onHistoryClick={handleHistoryClick}>
               {!testCases ? (
                 <>
                   <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
