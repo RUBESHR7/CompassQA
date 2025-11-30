@@ -1,48 +1,54 @@
 import React from 'react';
 import { ArrowRight, Compass, Layers, Zap, Shield } from 'lucide-react';
-<br />
-            Test Automation
-          </h1 >
+const LandingPage = ({ onStart }) => {
+  return (
+    <div className="landing-container">
+      <div className="hero-section">
+        <div className="hero-content">
+          <h1 className="hero-title">
+            <span className="text-gradient">Compass QA</span>
+            <br />
+            Is The Future of
 
-          <p className="hero-subtitle">
-            Transform user stories into comprehensive test suites with AI-driven precision.
-            Experience the next generation of quality assurance.
-          </p>
+            <p className="hero-subtitle">
+              Transform user stories into comprehensive test suites with AI-driven precision.
+              Experience the next generation of quality assurance.
+            </p>
 
-          <button className="btn-start" onClick={onStart}>
-            Get Started
-            <ArrowRight size={20} />
-          </button>
+            <button className="btn-start" onClick={onStart}>
+              Get Started
+              <ArrowRight size={20} />
+            </button>
         </div >
 
-  <div className="hero-visuals">
-    <div className="visual-card card-1">
-      <div className="card-icon"><Zap size={24} /></div>
-      <div className="card-text">
-        <h3>AI Powered</h3>
-        <p>Instant generation</p>
-      </div>
-    </div>
-    <div className="visual-card card-2">
-      <div className="card-icon"><Layers size={24} /></div>
-      <div className="card-text">
-        <h3>Structured</h3>
-        <p>Excel ready export</p>
-      </div>
-    </div>
-    <div className="visual-card card-3">
-      <div className="card-icon"><Shield size={24} /></div>
-      <div className="card-text">
-        <h3>Secure</h3>
-        <p>Enterprise grade</p>
-      </div>
-    </div>
+        <div className="hero-visuals">
+          <div className="visual-card card-1">
+            <div className="card-icon"><Zap size={24} /></div>
+            <div className="card-text">
+              <h3>AI Powered</h3>
+              <p>Instant generation</p>
+            </div>
+          </div>
+          <div className="visual-card card-2">
+            <div className="card-icon"><Layers size={24} /></div>
+            <div className="card-text">
+              <h3>Structured</h3>
+              <p>Excel ready export</p>
+            </div>
+          </div>
+          <div className="visual-card card-3">
+            <div className="card-icon"><Shield size={24} /></div>
+            <div className="card-text">
+              <h3>Secure</h3>
+              <p>Enterprise grade</p>
+            </div>
+          </div>
 
-    <div className="glow-effect"></div>
-  </div>
+          <div className="glow-effect"></div>
+        </div>
       </div >
 
-  <style>{`
+      <style>{`
         .landing-container {
           min-height: 100vh;
           display: flex;
