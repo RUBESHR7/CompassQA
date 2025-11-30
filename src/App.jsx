@@ -3,13 +3,14 @@ import Layout from './components/Layout';
 import InputForm from './components/InputForm';
 import ResultsView from './components/ResultsView';
 import LandingPage from './components/LandingPage';
+import Documentation from './components/Documentation';
 import { generateTestCases } from './utils/aiService';
 import { exportToExcel } from './utils/excelGenerator';
 
 import BackgroundWaves from './components/BackgroundWaves';
 
 function App() {
-  const [showLanding, setShowLanding] = useState(true);
+  const [currentView, setCurrentView] = useState('landing'); // 'landing', 'app', 'docs'
   const [testCases, setTestCases] = useState(null);
   const [filename, setFilename] = useState("TestCases.xlsx");
   const [loading, setLoading] = useState(false);
@@ -43,39 +44,46 @@ function App() {
   };
 
   const handleHomeClick = () => {
-    setShowLanding(true);
-    setTestCases(null); // Optional: reset state if desired, or keep it. Let's keep it for now but user said "go to first page".
+    setCurrentView('landing');
+    setTestCases(null);
   };
 
-  return (
-    <>
-      <BackgroundWaves />
-      {showLanding ? (
-        <LandingPage onStart={() => setShowLanding(false)} />
-      ) : (
-        <Layout onLogoClick={handleHomeClick}>
-          {!testCases ? (
-            <>
-              <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-                <h1 style={{
-                  fontSize: '3rem',
-                  fontWeight: '700',
-                  marginBottom: '1rem',
-                  fontFamily: 'var(--font-display)',
-                  letterSpacing: '-0.02em'
-                }}>
-                  <span className="text-gradient">New Project</span>
-                </h1>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '1.125rem', maxWidth: '600px', margin: '0 auto' }}>
-                  Configure your test generation settings below.
-                </p>
-              </div>
+  const handleDocsClick = () => {
+    setCurrentView('docs');
+  };
 
-              {loading ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem' }}>
-                  <div className="spinner"></div>
-                  <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)', fontSize: '1.125rem' }}>Analyzing requirements...</p>
-                  <style>{`
+  const handleStart = () => {
+    setCurrentView('app');
+  };
+
+  const renderContent = () => {
+    if (currentView === 'docs') {
+      return <Documentation />;
+    }
+
+    if (!testCases) {
+      return (
+        <>
+          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            <h1 style={{
+              fontSize: '3rem',
+              fontWeight: '700',
+              marginBottom: '1rem',
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '-0.02em'
+            }}>
+              <span className="text-gradient">New Project</span>
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1.125rem', maxWidth: '600px', margin: '0 auto' }}>
+              Configure your test generation settings below.
+            </p>
+          </div>
+
+          {loading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem' }}>
+              <div className="spinner"></div>
+              <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)', fontSize: '1.125rem' }}>Analyzing requirements...</p>
+              <style>{`
                 .spinner {
                   width: 50px;
                   height: 50px;
@@ -88,24 +96,37 @@ function App() {
                   to { transform: rotate(360deg); }
                 }
               `}</style>
-                </div>
-              ) : (
-                <InputForm onGenerate={handleGenerate} />
-              )}
-            </>
+            </div>
           ) : (
-            <ResultsView
-              testCases={testCases}
-              filename={filename}
-              apiKey={API_KEY}
-              onExport={handleExport}
-              onReset={handleReset}
-              onUpdate={(newCases, newName) => {
-                setTestCases(newCases);
-                if (newName) setFilename(newName);
-              }}
-            />
+            <InputForm onGenerate={handleGenerate} />
           )}
+        </>
+      );
+    }
+
+    return (
+      <ResultsView
+        testCases={testCases}
+        filename={filename}
+        apiKey={API_KEY}
+        onExport={handleExport}
+        onReset={handleReset}
+        onUpdate={(newCases, newName) => {
+          setTestCases(newCases);
+          if (newName) setFilename(newName);
+        }}
+      />
+    );
+  };
+
+  return (
+    <>
+      <BackgroundWaves />
+      {currentView === 'landing' ? (
+        <LandingPage onStart={handleStart} />
+      ) : (
+        <Layout onLogoClick={handleHomeClick} onDocsClick={handleDocsClick}>
+          {renderContent()}
         </Layout>
       )}
     </>

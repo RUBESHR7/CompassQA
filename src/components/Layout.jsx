@@ -1,7 +1,7 @@
 import React from 'react';
 import { Compass, Github, Twitter } from 'lucide-react';
 
-const Layout = ({ children, onLogoClick }) => {
+const Layout = ({ children, onLogoClick, onDocsClick }) => {
   return (
     <div className="layout">
       <header className="header glass-panel">
@@ -14,7 +14,7 @@ const Layout = ({ children, onLogoClick }) => {
           </div>
 
           <nav className="nav-links">
-            <a href="#" className="nav-link">Documentation</a>
+            <a href="#" className="nav-link" onClick={(e) => { e.preventDefault(); onDocsClick(); }}>Documentation</a>
             <a href="#" className="nav-link">Pricing</a>
             <a href="#" className="nav-link">Enterprise</a>
           </nav>
