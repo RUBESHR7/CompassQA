@@ -2,7 +2,7 @@
   "name": "compass-qa",
   "private": true,
   "version": "0.0.0",
-  "homepage": "https://rubeshr7.github.io/compass-qa/",
+  "homepage": "https://rubeshr7.github.io/CompassQA/",
   "type": "module",
   "scripts": {
     "dev": "vite",
