@@ -331,12 +331,21 @@ const InputForm = ({ onGenerate }) => {
         }
 
         @media (max-width: 768px) {
+          .input-form-container {
+            padding: 0 var(--spacing-md);
+          }
+
           .bento-grid {
             grid-template-columns: 1fr;
+            gap: var(--spacing-md);
           }
           
           .story-card, .config-column, .upload-card, .btn-generate {
             grid-column: 1;
+          }
+
+          .bento-card {
+            padding: var(--spacing-md);
           }
         }
       `}</style>

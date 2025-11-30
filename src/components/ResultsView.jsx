@@ -526,6 +526,43 @@ const ResultsView = ({ testCases, filename, apiKey, onExport, onReset, onUpdate 
           opacity: 0.5;
           cursor: not-allowed;
         }
+
+        @media (max-width: 768px) {
+          .results-container {
+            padding: 0 var(--spacing-md);
+            margin-top: var(--spacing-xl);
+          }
+
+          .results-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--spacing-md);
+          }
+
+          .header-actions {
+            width: 100%;
+            justify-content: space-between;
+          }
+
+          .btn-primary, .btn-secondary {
+            flex: 1;
+            justify-content: center;
+            padding: var(--spacing-sm);
+            font-size: 0.9rem;
+          }
+
+          .chat-panel {
+            width: calc(100vw - 40px);
+            right: 20px;
+            bottom: 80px;
+            height: 60vh;
+          }
+
+          .chat-toggle-btn {
+            bottom: 20px;
+            right: 20px;
+          }
+        }
       `}</style>
     </div>
   );

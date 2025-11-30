@@ -2,62 +2,62 @@ import React from 'react';
 import { ArrowRight, Compass, Layers, Zap, Shield } from 'lucide-react';
 
 const LandingPage = ({ onStart }) => {
-    return (
-        <div className="landing-container">
-            <div className="hero-section">
-                <div className="hero-content">
-                    <div className="badge-pill">
-                        <span className="badge-dot"></span>
-                        v1.0 Now Available
-                    </div>
+  return (
+    <div className="landing-container">
+      <div className="hero-section">
+        <div className="hero-content">
+          <div className="badge-pill">
+            <span className="badge-dot"></span>
+            v1.0 Now Available
+          </div>
 
-                    <h1 className="hero-title">
-                        <span className="text-gradient">Compass QA</span>
-                        <br />
-                        Is The Future of
-                        <br />
-                        Test Automation
-                    </h1>
+          <h1 className="hero-title">
+            <span className="text-gradient">Compass QA</span>
+            <br />
+            Is The Future of
+            <br />
+            Test Automation
+          </h1>
 
-                    <p className="hero-subtitle">
-                        Transform user stories into comprehensive test suites with AI-driven precision.
-                        Experience the next generation of quality assurance.
-                    </p>
+          <p className="hero-subtitle">
+            Transform user stories into comprehensive test suites with AI-driven precision.
+            Experience the next generation of quality assurance.
+          </p>
 
-                    <button className="btn-start" onClick={onStart}>
-                        Get Started
-                        <ArrowRight size={20} />
-                    </button>
-                </div>
+          <button className="btn-start" onClick={onStart}>
+            Get Started
+            <ArrowRight size={20} />
+          </button>
+        </div>
 
-                <div className="hero-visuals">
-                    <div className="visual-card card-1">
-                        <div className="card-icon"><Zap size={24} /></div>
-                        <div className="card-text">
-                            <h3>AI Powered</h3>
-                            <p>Instant generation</p>
-                        </div>
-                    </div>
-                    <div className="visual-card card-2">
-                        <div className="card-icon"><Layers size={24} /></div>
-                        <div className="card-text">
-                            <h3>Structured</h3>
-                            <p>Excel ready export</p>
-                        </div>
-                    </div>
-                    <div className="visual-card card-3">
-                        <div className="card-icon"><Shield size={24} /></div>
-                        <div className="card-text">
-                            <h3>Secure</h3>
-                            <p>Enterprise grade</p>
-                        </div>
-                    </div>
-
-                    <div className="glow-effect"></div>
-                </div>
+        <div className="hero-visuals">
+          <div className="visual-card card-1">
+            <div className="card-icon"><Zap size={24} /></div>
+            <div className="card-text">
+              <h3>AI Powered</h3>
+              <p>Instant generation</p>
             </div>
+          </div>
+          <div className="visual-card card-2">
+            <div className="card-icon"><Layers size={24} /></div>
+            <div className="card-text">
+              <h3>Structured</h3>
+              <p>Excel ready export</p>
+            </div>
+          </div>
+          <div className="visual-card card-3">
+            <div className="card-icon"><Shield size={24} /></div>
+            <div className="card-text">
+              <h3>Secure</h3>
+              <p>Enterprise grade</p>
+            </div>
+          </div>
 
-            <style>{`
+          <div className="glow-effect"></div>
+        </div>
+      </div>
+
+      <style>{`
         .landing-container {
           min-height: 100vh;
           display: flex;
@@ -235,9 +235,39 @@ const LandingPage = ({ onStart }) => {
             width: 100%;
           }
         }
+
+        @media (max-width: 768px) {
+          .landing-container {
+            padding: var(--spacing-lg);
+            align-items: flex-start;
+            padding-top: 100px; 
+          }
+
+          .hero-title {
+            font-size: 2.5rem;
+          }
+          
+          .hero-subtitle {
+            font-size: 1rem;
+          }
+
+          .hero-visuals {
+            height: 300px;
+            margin-top: var(--spacing-xl);
+          }
+
+          .visual-card {
+            width: 240px;
+            padding: var(--spacing-md);
+          }
+
+          .card-1 { top: 0; right: 5%; }
+          .card-2 { top: 35%; left: 0; }
+          .card-3 { bottom: 0; right: 10%; }
+        }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 };
 
 export default LandingPage;
