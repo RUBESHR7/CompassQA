@@ -1,20 +1,21 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Compass, Github, Twitter } from 'lucide-react';
 
-const Layout = ({ children, onLogoClick, onDocsClick }) => {
+const Layout = ({ children }) => {
   return (
     <div className="layout">
       <header className="header glass-panel">
         <div className="header-content">
-          <div className="logo" onClick={onLogoClick} style={{ cursor: 'pointer' }}>
+          <Link to="/" className="logo" style={{ textDecoration: 'none' }}>
             <div className="logo-icon">
               <Compass size={24} />
             </div>
             <span className="logo-text">Compass QA</span>
-          </div>
+          </Link>
 
           <nav className="nav-links">
-            <a href="#" className="nav-link" onClick={(e) => { e.preventDefault(); onDocsClick(); }}>Documentation</a>
+            <Link to="/docs" className="nav-link">Documentation</Link>
             <a href="#" className="nav-link">Pricing</a>
             <a href="#" className="nav-link">Enterprise</a>
           </nav>
@@ -69,6 +70,7 @@ const Layout = ({ children, onLogoClick, onDocsClick }) => {
           display: flex;
           align-items: center;
           gap: var(--spacing-sm);
+          color: var(--text-primary);
         }
 
         .logo-icon {
@@ -97,6 +99,7 @@ const Layout = ({ children, onLogoClick, onDocsClick }) => {
           color: var(--text-secondary);
           transition: color var(--transition-fast);
           font-weight: 500;
+          text-decoration: none;
         }
 
         .nav-link:hover {
