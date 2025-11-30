@@ -2,76 +2,112 @@ import React from 'react';
 import { Book, Code, FileText, Zap, Shield, Layers } from 'lucide-react';
 
 const Documentation = () => {
-    return (
-        <div className="docs-container">
-            <div className="docs-content">
-                <div className="docs-header">
-                    <h1 className="docs-title">
-                        <span className="text-gradient">Documentation</span>
-                    </h1>
-                    <p className="docs-subtitle">
-                        Everything you need to know about using Compass QA to generate comprehensive test cases.
-                    </p>
-                </div>
+  return (
+    <div className="docs-container">
+      <div className="docs-content">
+        <div className="docs-header">
+          <h1 className="docs-title">
+            <span className="text-gradient">Documentation</span>
+          </h1>
+          <p className="docs-subtitle">
+            Everything you need to know about using Compass QA to generate comprehensive test cases.
+          </p>
+        </div>
 
-                <div className="docs-grid">
-                    <section className="docs-section">
-                        <div className="section-icon">
-                            <Zap size={24} />
-                        </div>
-                        <h2>Getting Started</h2>
-                        <p>
-                            Compass QA uses advanced AI to analyze your user stories and screenshots.
-                            Simply paste your user story, upload relevant screenshots, and click "Generate Test Cases".
-                        </p>
-                        <ul className="feature-list">
-                            <li>Paste User Story</li>
-                            <li>Upload Screenshots (Optional)</li>
-                            <li>Select Number of Cases</li>
-                            <li>Generate & Export</li>
-                        </ul>
-                    </section>
-
-                    <section className="docs-section">
-                        <div className="section-icon">
-                            <Layers size={24} />
-                        </div>
-                        <h2>Test Case Structure</h2>
-                        <p>
-                            Generated test cases follow a standard industry format compatible with most test management tools.
-                        </p>
-                        <div className="code-block">
-                            <code>
-                                ID | Description | Pre-conditions | Steps | Expected Result
-                            </code>
-                        </div>
-                    </section>
-
-                    <section className="docs-section">
-                        <div className="section-icon">
-                            <Shield size={24} />
-                        </div>
-                        <h2>Best Practices</h2>
-                        <p>
-                            For the best results, provide clear and detailed user stories.
-                            Screenshots help the AI understand the UI context and generate more accurate steps.
-                        </p>
-                    </section>
-
-                    <section className="docs-section">
-                        <div className="section-icon">
-                            <FileText size={24} />
-                        </div>
-                        <h2>Exporting</h2>
-                        <p>
-                            Once generated, you can review the test cases in the results view.
-                            Click "Export to Excel" to download a .xlsx file formatted for immediate use.
-                        </p>
-                    </section>
-                </div>
+        <div className="docs-grid">
+          <section className="docs-section">
+            <div className="section-icon">
+              <Zap size={24} />
             </div>
+            <h2>Getting Started</h2>
+            <p>
+              Compass QA uses advanced AI to analyze your user stories and screenshots.
+              Simply paste your user story, upload relevant screenshots, and click "Generate Test Cases".
+            </p>
+            <ul className="feature-list">
+              <li>Paste User Story</li>
+              <li>Upload Screenshots (Optional)</li>
+              <li>Select Number of Cases</li>
+              <li>Generate & Export</li>
+            </ul>
+          </section>
 
-            <style>{`
+          <section className="docs-section">
+            <div className="section-icon">
+              <Layers size={24} />
+            </div>
+            <h2>Test Case Structure</h2>
+            <p>
+              Generated test cases follow a standard industry format compatible with most test management tools.
+            </p>
+            <div className="code-block">
+              <code>
+                ID | Description | Pre-conditions | Steps | Expected Result
+              </code>
+            </div>
+          </section>
+
+          <section className="docs-section">
+            <div className="section-icon">
+              <Shield size={24} />
+            </div>
+            <h2>Best Practices</h2>
+            <p>
+              For the best results, provide clear and detailed user stories.
+              Screenshots help the AI understand the UI context and generate more accurate steps.
+            </p>
+          </section>
+
+          <section className="docs-section">
+            <div className="section-icon">
+              <FileText size={24} />
+            </div>
+            <h2>Exporting</h2>
+            <p>
+              Once generated, you can review the test cases in the results view.
+              Click "Export to Excel" to download a .xlsx file formatted for immediate use.
+            </p>
+          </section>
+
+          <section className="docs-section" style={{ gridColumn: '1 / -1' }}>
+            <div className="section-icon">
+              <Code size={24} />
+            </div>
+            <h2>Technical Architecture</h2>
+            <p>
+              Compass QA is built with modern web technologies to ensure performance and reliability.
+            </p>
+
+            <div className="tech-grid">
+              <div className="tech-item">
+                <h3>Core AI Engine</h3>
+                <p>Powered by <strong>Google Gemini API</strong> (gemini-1.5-flash) for high-speed, accurate natural language processing and image analysis.</p>
+              </div>
+
+              <div className="tech-item">
+                <h3>Frontend Framework</h3>
+                <p>Built with <strong>React 19</strong> and <strong>Vite</strong> for a fast, reactive user experience.</p>
+              </div>
+
+              <div className="tech-item">
+                <h3>Key Libraries</h3>
+                <ul className="tech-list">
+                  <li><strong>@google/generative-ai</strong>: Direct integration with Gemini models.</li>
+                  <li><strong>exceljs</strong>: Professional-grade Excel file generation and formatting.</li>
+                  <li><strong>lucide-react</strong>: Beautiful, consistent iconography.</li>
+                </ul>
+              </div>
+
+              <div className="tech-item">
+                <h3>Languages</h3>
+                <p>Written in <strong>Modern JavaScript (ES6+)</strong> with comprehensive CSS3 styling using CSS Variables for theming.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <style>{`
         .docs-container {
           padding: var(--spacing-xl);
           max-width: 1200px;
@@ -145,6 +181,34 @@ const Documentation = () => {
           margin-bottom: var(--spacing-lg);
         }
 
+        .tech-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: var(--spacing-lg);
+          margin-top: var(--spacing-lg);
+        }
+
+        .tech-item h3 {
+          font-size: 1.1rem;
+          color: var(--text-primary);
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .tech-list {
+          list-style: none;
+          padding: 0;
+        }
+
+        .tech-list li {
+          color: var(--text-secondary);
+          margin-bottom: 4px;
+          font-size: 0.95rem;
+        }
+
+        .tech-list strong {
+          color: var(--accent-primary);
+        }
+
         .feature-list {
           list-style: none;
           padding: 0;
@@ -187,8 +251,8 @@ const Documentation = () => {
           }
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 };
 
 export default Documentation;
