@@ -1,5 +1,5 @@
 import React from 'react';
-import { Book, Code, FileText, Zap, Shield, Layers } from 'lucide-react';
+import { Book, Code, FileText, Zap, Shield, Layers, History, Image, Bell } from 'lucide-react';
 
 const Documentation = () => {
   return (
@@ -26,9 +26,40 @@ const Documentation = () => {
             </p>
             <ul className="feature-list">
               <li>Paste User Story</li>
-              <li>Upload Screenshots (Optional)</li>
+              <li>Upload Screenshots (Drag & Drop or Paste)</li>
+              <li><strong>Preview Images</strong> by clicking thumbnails</li>
               <li>Select Number of Cases</li>
               <li>Generate & Export</li>
+            </ul>
+          </section>
+
+          <section className="docs-section">
+            <div className="section-icon">
+              <History size={24} />
+            </div>
+            <h2>History & Persistence</h2>
+            <p>
+              Never lose your work again. Compass QA automatically saves your generated test cases.
+            </p>
+            <ul className="feature-list">
+              <li><strong>Auto-Save</strong>: Your current work is saved to local storage.</li>
+              <li><strong>History Tab</strong>: View and restore previous generations.</li>
+              <li><strong>Refresh Protection</strong>: Data persists even if you reload the page.</li>
+            </ul>
+          </section>
+
+          <section className="docs-section">
+            <div className="section-icon">
+              <Image size={24} />
+            </div>
+            <h2>Image Features</h2>
+            <p>
+              Enhanced image handling for better context.
+            </p>
+            <ul className="feature-list">
+              <li><strong>Smart Preview</strong>: Click any uploaded thumbnail to view it in full size.</li>
+              <li><strong>Clipboard Support</strong>: Paste images directly from your clipboard (Ctrl+V).</li>
+              <li><strong>Drag & Drop</strong>: Easily manage multiple screenshots.</li>
             </ul>
           </section>
 
@@ -45,28 +76,6 @@ const Documentation = () => {
                 ID | Description | Pre-conditions | Steps | Expected Result
               </code>
             </div>
-          </section>
-
-          <section className="docs-section">
-            <div className="section-icon">
-              <Shield size={24} />
-            </div>
-            <h2>Best Practices</h2>
-            <p>
-              For the best results, provide clear and detailed user stories.
-              Screenshots help the AI understand the UI context and generate more accurate steps.
-            </p>
-          </section>
-
-          <section className="docs-section">
-            <div className="section-icon">
-              <FileText size={24} />
-            </div>
-            <h2>Exporting</h2>
-            <p>
-              Once generated, you can review the test cases in the results view.
-              Click "Export to Excel" to download a .xlsx file formatted for immediate use.
-            </p>
           </section>
 
           <section className="docs-section" style={{ gridColumn: '1 / -1' }}>
@@ -92,15 +101,21 @@ const Documentation = () => {
               <div className="tech-item">
                 <h3>Key Libraries</h3>
                 <ul className="tech-list">
+                  <li><strong>react-router-dom</strong>: Seamless client-side routing.</li>
+                  <li><strong>sonner</strong>: Beautiful, responsive toast notifications.</li>
                   <li><strong>@google/generative-ai</strong>: Direct integration with Gemini models.</li>
-                  <li><strong>exceljs</strong>: Professional-grade Excel file generation and formatting.</li>
+                  <li><strong>exceljs</strong>: Professional-grade Excel file generation.</li>
                   <li><strong>lucide-react</strong>: Beautiful, consistent iconography.</li>
                 </ul>
               </div>
 
               <div className="tech-item">
-                <h3>Languages</h3>
-                <p>Written in <strong>Modern JavaScript (ES6+)</strong> with comprehensive CSS3 styling using CSS Variables for theming.</p>
+                <h3>Features</h3>
+                <ul className="tech-list">
+                  <li><strong>LocalStorage</strong>: Client-side data persistence.</li>
+                  <li><strong>Code Splitting</strong>: Optimized performance with React.lazy.</li>
+                  <li><strong>Modern CSS</strong>: CSS Variables and Glassmorphism design.</li>
+                </ul>
               </div>
             </div>
           </section>
