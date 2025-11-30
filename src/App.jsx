@@ -13,13 +13,15 @@ function App() {
   const [testCases, setTestCases] = useState(null);
   const [filename, setFilename] = useState("TestCases.xlsx");
   const [loading, setLoading] = useState(false);
-  const [apiKey, setApiKey] = useState("");
+
+  // WARNING: Hardcoding API keys in client-side code is insecure.
+  // The key will be visible to anyone who inspects the code.
+  const API_KEY = "AIzaSyBq4RiJNeQvK5VAUJUEq8tkCcK9rBOCk5g";
 
   const handleGenerate = async (data) => {
     setLoading(true);
-    setApiKey(data.apiKey); // Store key for chatbot
     try {
-      const result = await generateTestCases(data.userStory, data.screenshots, data.numTestCases, data.apiKey);
+      const result = await generateTestCases(data.userStory, data.screenshots, data.numTestCases, API_KEY);
       setTestCases(result.testCases);
       setFilename(result.suggestedFilename);
     } catch (error) {
@@ -95,7 +97,7 @@ function App() {
             <ResultsView
               testCases={testCases}
               filename={filename}
-              apiKey={apiKey}
+              apiKey={API_KEY}
               onExport={handleExport}
               onReset={handleReset}
               onUpdate={(newCases, newName) => {

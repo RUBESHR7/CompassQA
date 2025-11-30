@@ -6,15 +6,8 @@ const InputForm = ({ onGenerate }) => {
   const [testCaseId, setTestCaseId] = useState('TC_001');
   const [screenshots, setScreenshots] = useState([]);
   const [numTestCases, setNumTestCases] = useState(5);
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
-
-  React.useEffect(() => {
-    if (apiKey) {
-      localStorage.setItem('gemini_api_key', apiKey);
-    }
-  }, [apiKey]);
 
   React.useEffect(() => {
     const handlePaste = (e) => {
@@ -71,7 +64,7 @@ const InputForm = ({ onGenerate }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onGenerate({ userStory, testCaseId, screenshots, numTestCases, apiKey });
+    onGenerate({ userStory, testCaseId, screenshots, numTestCases });
   };
 
   return (
@@ -93,21 +86,6 @@ const InputForm = ({ onGenerate }) => {
 
         {/* Configuration Column */}
         <div className="config-column">
-          {/* API Key Card */}
-          <div className="bento-card api-card glass-panel">
-            <div className="card-header">
-              <div className="icon-wrapper"><Settings size={20} /></div>
-              <h3>Gemini API Key</h3>
-            </div>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Paste your API Key here"
-              required
-            />
-          </div>
-
           {/* ID Card */}
           <div className="bento-card id-card glass-panel">
             <div className="card-header">
