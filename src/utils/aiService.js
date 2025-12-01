@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export const generateTestCases = async (userStory, screenshots, apiKey) => {
+export const generateTestCases = async (userStory, screenshots, numTestSteps, apiKey) => {
   if (!apiKey) {
     throw new Error("API Key is required");
   }
@@ -47,7 +47,7 @@ export const generateTestCases = async (userStory, screenshots, apiKey) => {
     - The output must be valid JSON only. Do not include markdown code blocks.
     - "inputData" field MUST BE EMPTY string "". All specific data (e.g., "Enter 'user@example.com'") must be included in the "description" field.
     - Ensure test cases cover positive, negative, and edge cases.
-    - Test steps should be detailed (5-7 steps per case).
+    - Test steps should be detailed (exactly ${numTestSteps} steps per case).
     - Use the provided User Story to derive realistic input data and expected outcomes.
   `;
 
