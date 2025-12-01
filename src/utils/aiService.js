@@ -6,7 +6,7 @@ export const generateTestCases = async (userStory, screenshots, numTestCases, ap
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   let prompt = `
     You are an expert QA Automation Engineer. 
@@ -55,8 +55,12 @@ export const generateTestCases = async (userStory, screenshots, numTestCases, ap
     const response = await result.response;
     const text = response.text();
 
-    // Clean up potential markdown formatting
-    const jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    // Robust JSON extraction
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No JSON found in response");
+    }
+    const jsonString = jsonMatch[0];
 
     const parsedData = JSON.parse(jsonString);
 
@@ -83,7 +87,7 @@ export const refineTestCases = async (currentTestCases, instruction, apiKey) => 
   if (!apiKey) throw new Error("API Key is required");
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const prompt = `
     You are an expert QA Automation Engineer.
@@ -114,10 +118,17 @@ export const refineTestCases = async (currentTestCases, instruction, apiKey) => 
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    const jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    // Robust JSON extraction
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No JSON found in response");
+    }
+    const jsonString = jsonMatch[0];
+
     return JSON.parse(jsonString);
   } catch (error) {
     console.error("Refinement Error:", error);
-    throw new Error("Failed to refine test cases.");
+    throw new Error("Failed to refine test cases: " + error.message);
   }
 };

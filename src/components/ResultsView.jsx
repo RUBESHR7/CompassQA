@@ -34,7 +34,7 @@ const ResultsView = ({ testCases, filename, apiKey, onExport, onReset, onUpdate 
       setMessages(prev => [...prev, { role: 'ai', text: `Done! I've updated the test cases and set the filename to "${result.suggestedFilename || filename}".` }]);
     } catch (error) {
       console.error("Refinement error:", error);
-      setMessages(prev => [...prev, { role: 'ai', text: 'Sorry, I encountered an error while refining the test cases. Please try again.' }]);
+      setMessages(prev => [...prev, { role: 'ai', text: `Sorry, I encountered an error: ${error.message}` }]);
     } finally {
       setIsRefining(false);
     }
