@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export const generateTestCases = async (userStory, screenshots, numTestCases, apiKey) => {
+export const generateTestCases = async (userStory, screenshots, apiKey) => {
   if (!apiKey) {
     throw new Error("API Key is required");
   }
@@ -10,7 +10,8 @@ export const generateTestCases = async (userStory, screenshots, numTestCases, ap
 
   let prompt = `
     You are an expert QA Automation Engineer. 
-    Analyze the following User Story and generate exactly ${numTestCases} comprehensive test cases.
+    Analyze the following User Story and generate a comprehensive set of test cases covering all scenarios (positive, negative, edge cases).
+    Do not limit the number of test cases; generate as many as necessary to fully cover the user story.
     
     User Story:
     "${userStory}"

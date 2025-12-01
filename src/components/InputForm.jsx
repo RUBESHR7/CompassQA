@@ -5,7 +5,6 @@ const InputForm = ({ onGenerate }) => {
   const [userStory, setUserStory] = useState('');
   const [testCaseId, setTestCaseId] = useState('TC_001');
   const [screenshots, setScreenshots] = useState([]); // Array of { file: File, url: string }
-  const [numTestCases, setNumTestCases] = useState(5);
   const [isDragging, setIsDragging] = useState(false);
   const [previewImage, setPreviewImage] = useState(null); // URL of image to preview
   const fileInputRef = useRef(null);
@@ -83,7 +82,7 @@ const InputForm = ({ onGenerate }) => {
     e.preventDefault();
     // Extract just the File objects for the API
     const filesOnly = screenshots.map(s => s.file);
-    onGenerate({ userStory, testCaseId, screenshots: filesOnly, numTestCases });
+    onGenerate({ userStory, testCaseId, screenshots: filesOnly });
   };
 
   return (
@@ -118,25 +117,6 @@ const InputForm = ({ onGenerate }) => {
               placeholder="TC_001"
               required
             />
-          </div>
-
-          {/* Count Card */}
-          <div className="bento-card count-card glass-panel">
-            <div className="card-header">
-              <div className="icon-wrapper"><ChevronDown size={20} /></div>
-              <h3>Count</h3>
-            </div>
-            <select
-              value={numTestCases}
-              onChange={(e) => setNumTestCases(Number(e.target.value))}
-            >
-              <option value={3}>3 Cases</option>
-              <option value={5}>5 Cases</option>
-              <option value={7}>7 Cases</option>
-              <option value={10}>10 Cases</option>
-              <option value={15}>15 Cases</option>
-              <option value={20}>20 Cases</option>
-            </select>
           </div>
         </div>
 

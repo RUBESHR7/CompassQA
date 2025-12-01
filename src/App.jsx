@@ -66,7 +66,7 @@ function App() {
 
     setLoading(true);
     try {
-      const result = await generateTestCases(data.userStory, data.screenshots, data.numTestCases, API_KEY);
+      const result = await generateTestCases(data.userStory, data.screenshots, API_KEY);
       setTestCases(result.testCases);
       setFilename(result.suggestedFilename);
 
