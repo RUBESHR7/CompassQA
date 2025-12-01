@@ -6,7 +6,7 @@ export const generateTestCases = async (userStory, screenshots, numTestCases, ap
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   let prompt = `
     You are an expert QA Automation Engineer. 
@@ -87,7 +87,7 @@ export const refineTestCases = async (currentTestCases, instruction, apiKey) => 
   if (!apiKey) throw new Error("API Key is required");
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const prompt = `
     You are an expert QA Automation Engineer.
