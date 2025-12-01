@@ -47,7 +47,7 @@ const BackgroundWaves = () => {
             const fov = 300;
             const cameraY = -150; // Keep camera height
             const cameraZ = -100;
-            const centerY = height; // Horizon at the absolute bottom
+            const centerY = height + 75; // Move waves down by ~2cm (75px)
             const centerX = width / 2;
 
             particles.forEach(p => {
