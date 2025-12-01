@@ -11,8 +11,13 @@ const ResultsView = ({ testCases, filename, apiKey, onExport, onReset, onUpdate 
   ]);
   const chatEndRef = useRef(null);
 
+  // Scroll to top only once when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
+  }, []);
+
+  // Scroll chat to bottom when messages change
+  useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isChatOpen]);
 
