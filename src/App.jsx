@@ -66,7 +66,7 @@ function App() {
 
     setLoading(true);
     try {
-      const result = await generateTestCases(data.userStory, data.screenshots, data.numTestSteps, API_KEY);
+      const result = await generateTestCases(data.userStory, data.screenshots, API_KEY);
       setTestCases(result.testCases);
       setFilename(result.suggestedFilename);
 
@@ -149,7 +149,7 @@ function App() {
 
   return (
     <>
-      <Toaster position="top-center" theme="dark" />
+      <Toaster position="top-center" theme="dark" duration={1500} />
       <BackgroundWaves />
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>

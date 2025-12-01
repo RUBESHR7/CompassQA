@@ -12,6 +12,7 @@ const ResultsView = ({ testCases, filename, apiKey, onExport, onReset, onUpdate 
   const chatEndRef = useRef(null);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isChatOpen]);
 
