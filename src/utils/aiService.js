@@ -22,10 +22,22 @@ const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 export const generateTestCases = async (userStory, screenshots) => {
   try {
+    // Debug logging
+    console.log("Environment Check:", {
+      isDevelopment,
+      hasApiKey: !!API_KEY,
+      mode: import.meta.env.MODE
+    });
+
     // In development, use client-side SDK directly
-    if (isDevelopment && API_KEY) {
+    if (isDevelopment) {
+      if (!API_KEY) {
+        throw new Error("Missing VITE_GEMINI_API_KEY in .env file for local development. Please add it to your .env file.");
+      }
+
+      console.log("Using local client-side generation");
       const genAI = new GoogleGenerativeAI(API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
       let prompt = `
         You are an expert QA Automation Engineer. 
@@ -89,6 +101,7 @@ export const generateTestCases = async (userStory, screenshots) => {
     }
 
     // In production, use Netlify Functions
+    console.log("Using Netlify Functions generation");
     let processedScreenshots = [];
     if (screenshots && screenshots.length > 0) {
       processedScreenshots = await Promise.all(screenshots.map(file => fileToBase64(file)));
@@ -106,8 +119,14 @@ export const generateTestCases = async (userStory, screenshots) => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Server error: ${response.status}`);
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      } else {
+        const text = await response.text();
+        throw new Error(`Server error: ${response.status}. Response: ${text.slice(0, 100)}...`);
+      }
     }
 
     const data = await response.json();
@@ -122,9 +141,13 @@ export const generateTestCases = async (userStory, screenshots) => {
 export const refineTestCases = async (currentTestCases, userInstructions) => {
   try {
     // In development, use client-side SDK directly
-    if (isDevelopment && API_KEY) {
+    if (isDevelopment) {
+      if (!API_KEY) {
+        throw new Error("Missing VITE_GEMINI_API_KEY in .env file for local development");
+      }
+
       const genAI = new GoogleGenerativeAI(API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
       const prompt = `
         You are an expert QA Automation Engineer.
@@ -167,8 +190,14 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Server error: ${response.status}`);
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      } else {
+        const text = await response.text();
+        throw new Error(`Server error: ${response.status}. Response: ${text.slice(0, 100)}...`);
+      }
     }
 
     const data = await response.json();
