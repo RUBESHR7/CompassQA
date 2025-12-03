@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export const generateTestCases = async (userStory, screenshots, apiKey) => {
+export const generateTestCases = async (userStory, screenshots, startId, apiKey) => {
   if (!apiKey) {
     throw new Error("API Key is required");
   }
@@ -71,10 +71,34 @@ export const generateTestCases = async (userStory, screenshots, apiKey) => {
     const filename = parsedData.suggestedFilename || "TestCases.xlsx";
 
     // Post-process to ensure IDs match the requested format if needed
-    const processedCases = testCasesArray.map((tc, index) => ({
-      ...tc,
-      id: `TC_${String(index + 1).padStart(3, '0')}` // Ensure sequential IDs
-    }));
+    // Post-process to ensure IDs match the requested format
+    const processedCases = testCasesArray.map((tc, index) => {
+      let newId;
+      if (startId) {
+        const match = startId.match(/^(.*?)(\d+)$/);
+        if (match) {
+          const prefix = match[1];
+          const numStr = match[2];
+          const startNum = parseInt(numStr, 10);
+          const width = numStr.length;
+          const nextNum = startNum + index;
+          newId = `${prefix}${String(nextNum).padStart(width, '0')}`;
+        } else {
+          // If startId has no number at the end, append _001, _002 etc.
+          // But if it's the first one, maybe just startId? 
+          // Actually, usually user gives "TC_001", so we want "TC_001", "TC_002".
+          // If user gives "LOGIN", we probably want "LOGIN_001".
+          newId = `${startId}_${String(index + 1).padStart(3, '0')}`;
+        }
+      } else {
+        newId = `TC_${String(index + 1).padStart(3, '0')}`;
+      }
+
+      return {
+        ...tc,
+        id: newId
+      };
+    });
 
     return { testCases: processedCases, suggestedFilename: filename };
 
