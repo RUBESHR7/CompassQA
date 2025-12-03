@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Download, CheckCircle, MessageSquare, Send, X, Loader, Sparkles } from 'lucide-react';
 import { refineTestCases } from '../utils/aiService';
 
-const ResultsView = ({ testCases, filename, apiKey, onExport, onReset, onUpdate }) => {
+const ResultsView = ({ testCases, filename, onExport, onReset, onUpdate }) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [isRefining, setIsRefining] = useState(false);
@@ -35,7 +35,7 @@ const ResultsView = ({ testCases, filename, apiKey, onExport, onReset, onUpdate 
     setIsRefining(true);
 
     try {
-      const result = await refineTestCases(testCases, userMessage, apiKey);
+      const result = await refineTestCases(testCases, userMessage);
       onUpdate(result.testCases, result.suggestedFilename);
       setMessages(prev => [...prev, { role: 'ai', text: `Done! I've updated the test cases and set the filename to "${result.suggestedFilename || filename}".` }]);
     } catch (error) {

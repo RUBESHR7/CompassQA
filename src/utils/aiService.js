@@ -1,159 +1,79 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// Helper to convert File to Base64
+const fileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      // Remove the data URL prefix (e.g., "data:image/png;base64,")
+      const base64String = reader.result.split(',')[1];
+      resolve({
+        data: base64String,
+        mimeType: file.type
+      });
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
 
-export const generateTestCases = async (userStory, screenshots, startId, apiKey) => {
-  if (!apiKey) {
-    throw new Error("API Key is required");
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-
-  let prompt = `
-    You are an expert QA Automation Engineer. 
-    Analyze the following User Story and generate a comprehensive set of test cases covering all scenarios (positive, negative, edge cases).
-    Do not limit the number of test cases; generate as many as necessary to fully cover the user story.
-    
-    User Story:
-    "${userStory}"
-    
-    Output Format:
-    Provide a JSON object with two fields:
-    1. "suggestedFilename": "A concise, professional filename based on the User Story (e.g., 'Login_Feature_TestCases.xlsx')"
-    2. "testCases": A JSON array of objects with the following structure:
-    [
-      {
-        "id": "TC_XXX",
-        "summary": "Concise summary of the test case",
-        "description": "Detailed description including the purpose",
-        "preConditions": "Prerequisites required",
-        "steps": [
-          {
-            "stepNumber": 1,
-            "description": "Detailed action to perform (include all data requirements here)",
-            "inputData": "", 
-            "expectedOutcome": "Expected result of the step"
-          }
-        ],
-        "label": "Functional/UI/Security/Performance",
-        "priority": "High/Medium/Low",
-        "status": "Draft",
-        "executionMinutes": "Estimated time in minutes",
-        "caseFolder": "Module/Feature Name",
-        "testCategory": "Regression/Smoke/Sanity"
-      }
-    ]
-
-    Constraints:
-    - The output must be valid JSON only. Do not include markdown code blocks.
-    - "inputData" field MUST BE EMPTY string "". All specific data (e.g., "Enter 'user@example.com'") must be included in the "description" field.
-    - Ensure test cases cover positive, negative, and edge cases.
-    - Test steps should be detailed (5-10 steps per case).
-    - Use the provided User Story to derive realistic input data and expected outcomes.
-  `;
-
+export const generateTestCases = async (userStory, screenshots) => {
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    // Robust JSON extraction
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in response");
+    // Convert screenshots to base64 if they exist
+    let processedScreenshots = [];
+    if (screenshots && screenshots.length > 0) {
+      processedScreenshots = await Promise.all(screenshots.map(file => fileToBase64(file)));
     }
-    const jsonString = jsonMatch[0];
 
-    const parsedData = JSON.parse(jsonString);
-
-    // Handle both old (array) and new (object) formats for backward compatibility if needed, 
-    // but strictly we expect object now.
-    const testCasesArray = Array.isArray(parsedData) ? parsedData : parsedData.testCases;
-    const filename = parsedData.suggestedFilename || "TestCases.xlsx";
-
-    // Post-process to ensure IDs match the requested format if needed
-    // Post-process to ensure IDs match the requested format
-    const processedCases = testCasesArray.map((tc, index) => {
-      let newId;
-      if (startId) {
-        const match = startId.match(/^(.*?)(\d+)$/);
-        if (match) {
-          const prefix = match[1];
-          const numStr = match[2];
-          const startNum = parseInt(numStr, 10);
-          const width = numStr.length;
-          const nextNum = startNum + index;
-          newId = `${prefix}${String(nextNum).padStart(width, '0')}`;
-        } else {
-          // If startId has no number at the end, append _001, _002 etc.
-          // But if it's the first one, maybe just startId? 
-          // Actually, usually user gives "TC_001", so we want "TC_001", "TC_002".
-          // If user gives "LOGIN", we probably want "LOGIN_001".
-          newId = `${startId}_${String(index + 1).padStart(3, '0')}`;
-        }
-      } else {
-        newId = `TC_${String(index + 1).padStart(3, '0')}`;
-      }
-
-      return {
-        ...tc,
-        id: newId
-      };
+    const response = await fetch('/.netlify/functions/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userStory,
+        screenshots: processedScreenshots
+      }),
     });
 
-    return { testCases: processedCases, suggestedFilename: filename };
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Server error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
 
   } catch (error) {
-    console.error("Gemini API Error:", error);
-    throw new Error(error.message || "Failed to generate test cases.");
+    console.error("Error generating test cases:", error);
+    throw error;
   }
 };
 
-export const refineTestCases = async (currentTestCases, instruction, apiKey) => {
-  if (!apiKey) throw new Error("API Key is required");
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-
-  const prompt = `
-    You are an expert QA Automation Engineer.
-    
-    Current Test Cases (JSON):
-    ${JSON.stringify(currentTestCases)}
-
-    User Instruction:
-    "${instruction}"
-
-    Task:
-    1. Analyze the current test cases and the user's instruction.
-    2. Modify, add, or remove test cases as requested.
-    3. If adding new cases, ensure they follow the same structure and numbering.
-    4. "inputData" field MUST REMAIN EMPTY "". Put details in "description".
-    5. Return the COMPLETELY UPDATED JSON object containing the "testCases" array and a potentially updated "suggestedFilename".
-
-    Output Format:
-    {
-      "suggestedFilename": "Updated filename if context changed",
-      "testCases": [ ... ]
-    }
-    
-    Constraint: Return ONLY valid JSON. No markdown.
-  `;
+export const refineTestCases = async (currentTestCases, userInstructions) => {
+  // TODO: Implement /api/refine endpoint for secure refinement
+  // For now, this will fail if we don't have a backend endpoint.
+  // We should create api/refine.js as well to be complete.
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const response = await fetch('/.netlify/functions/refine', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        testCases: currentTestCases,
+        instructions: userInstructions
+      }),
+    });
 
-    // Robust JSON extraction
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in response");
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Server error: ${response.status}`);
     }
-    const jsonString = jsonMatch[0];
 
-    return JSON.parse(jsonString);
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.error("Refinement Error:", error);
-    throw new Error("Failed to refine test cases: " + error.message);
+    console.error("Error refining test cases:", error);
+    throw error;
   }
 };

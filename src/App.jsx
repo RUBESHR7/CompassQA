@@ -56,17 +56,10 @@ function App() {
     localStorage.setItem('compass_qa_history', JSON.stringify(history));
   }, [history]);
 
-  const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
   const handleGenerate = async (data) => {
-    if (!API_KEY) {
-      toast.error("API Key is missing. Please check your .env file.");
-      return;
-    }
-
     setLoading(true);
     try {
-      const result = await generateTestCases(data.userStory, data.screenshots, data.testCaseId, API_KEY);
+      const result = await generateTestCases(data.userStory, data.screenshots);
       setTestCases(result.testCases);
       setFilename(result.suggestedFilename);
 
@@ -197,7 +190,6 @@ function App() {
                 <ResultsView
                   testCases={testCases}
                   filename={filename}
-                  apiKey={API_KEY}
                   onExport={handleExport}
                   onReset={handleReset}
                   onUpdate={(newCases, newName) => {
