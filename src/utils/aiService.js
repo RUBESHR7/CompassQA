@@ -22,186 +22,120 @@ const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 export const generateTestCases = async (userStory, screenshots) => {
   try {
-    // Debug logging
-    console.log("Environment Check:", {
-      isDevelopment,
-      hasApiKey: !!API_KEY,
-      mode: import.meta.env.MODE
-    });
+    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!API_KEY) {
+      throw new Error("Missing VITE_GEMINI_API_KEY in .env file. Please add it to your .env file.");
+    }
 
-    // In development, use client-side SDK directly
-    if (isDevelopment) {
-      if (!API_KEY) {
-        throw new Error("Missing VITE_GEMINI_API_KEY in .env file for local development. Please add it to your .env file.");
-      }
+    console.log("Using client-side generation");
+    const genAI = new GoogleGenerativeAI(API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
-      console.log("Using local client-side generation");
-      const genAI = new GoogleGenerativeAI(API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-
-      let prompt = `
-        You are an expert QA Automation Engineer. 
-        Analyze the following User Story and generate a comprehensive set of test cases covering all scenarios (positive, negative, edge cases).
-        Do not limit the number of test cases; generate as many as necessary to fully cover the user story.
-        
-        User Story:
-        "${userStory}"
-        
-        Output Format:
-        Provide a JSON object with two fields:
-        1. "suggestedFilename": "A concise, professional filename based on the User Story (e.g., 'Login_Feature_TestCases.xlsx')"
-        2. "testCases": A JSON array of objects with the following structure:
-        [
-          {
-            "id": "TC_XXX",
-            "summary": "Concise summary of the test case",
-            "description": "Detailed description including the purpose",
-            "preConditions": "Prerequisites required",
-            "steps": [
-              {
-                "stepNumber": 1,
-                "description": "Detailed action to perform (include all data requirements here)",
-                "inputData": "", 
-                "expectedOutcome": "Expected result of the step"
-              }
-            ],
-            "label": "Functional/UI/Security/Performance",
-            "priority": "High/Medium/Low",
-            "status": "Draft",
-            "executionMinutes": "Estimated time in minutes",
-            "caseFolder": "Module/Feature Name",
-            "testCategory": "Regression/Smoke/Sanity"
-          }
-        ]
-
-        Constraints:
-        - The output must be valid JSON only. Do not include markdown code blocks.
-        - "inputData" field MUST BE EMPTY string "". All specific data (e.g., "Enter 'user@example.com'") must be included in the "description" field.
-        - Ensure test cases cover positive, negative, and edge cases.
-        - Test steps should be detailed (5-10 steps per case).
-        - Use the provided User Story to derive realistic input data and expected outcomes.
-      `;
-
-      const parts = [prompt];
-
-      if (screenshots && screenshots.length > 0) {
-        parts.push("\n\nRefer to the attached screenshots for UI context:");
-        for (const file of screenshots) {
-          const base64Data = await fileToGenerativePart(file);
-          parts.push(base64Data);
+    let prompt = `
+      You are an expert QA Automation Engineer. 
+      Analyze the following User Story and generate a comprehensive set of test cases covering all scenarios (positive, negative, edge cases).
+      Do not limit the number of test cases; generate as many as necessary to fully cover the user story.
+      
+      User Story:
+      "${userStory}"
+      
+      Output Format:
+      Provide a JSON object with two fields:
+      1. "suggestedFilename": "A concise, professional filename based on the User Story (e.g., 'Login_Feature_TestCases.xlsx')"
+      2. "testCases": A JSON array of objects with the following structure:
+      [
+        {
+          "id": "TC_XXX",
+          "summary": "Concise summary of the test case",
+          "description": "Detailed description including the purpose",
+          "preConditions": "Prerequisites required",
+          "steps": [
+            {
+              "stepNumber": 1,
+              "description": "Detailed action to perform (include all data requirements here)",
+              "inputData": "", 
+              "expectedOutcome": "Expected result of the step"
+            }
+          ],
+          "label": "Functional/UI/Security/Performance",
+          "priority": "High/Medium/Low",
+          "status": "Draft",
+          "executionMinutes": "Estimated time in minutes",
+          "caseFolder": "Module/Feature Name",
+          "testCategory": "Regression/Smoke/Sanity"
         }
-      }
+      ]
 
-      const result = await model.generateContent(parts);
-      const response = await result.response;
-      const text = response.text();
+      Constraints:
+      - The output must be valid JSON only. Do not include markdown code blocks.
+      - "inputData" field MUST BE EMPTY string "". All specific data (e.g., "Enter 'user@example.com'") must be included in the "description" field.
+      - Ensure test cases cover positive, negative, and edge cases.
+      - Test steps should be detailed (5-10 steps per case).
+      - Use the provided User Story to derive realistic input data and expected outcomes.
+    `;
 
-      const jsonString = text.replace(/```json\n|\n```/g, "").replace(/```/g, "");
-      return JSON.parse(jsonString);
-    }
+    const parts = [prompt];
 
-    // In production, use Netlify Functions
-    console.log("Using Netlify Functions generation");
-    let processedScreenshots = [];
     if (screenshots && screenshots.length > 0) {
-      processedScreenshots = await Promise.all(screenshots.map(file => fileToBase64(file)));
-    }
-
-    const response = await fetch('/.netlify/functions/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userStory,
-        screenshots: processedScreenshots
-      }),
-    });
-
-    if (!response.ok) {
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.indexOf("application/json") !== -1) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Server error: ${response.status}`);
-      } else {
-        const text = await response.text();
-        throw new Error(`Server error: ${response.status}. Response: ${text.slice(0, 100)}...`);
+      parts.push("\n\nRefer to the attached screenshots for UI context:");
+      for (const file of screenshots) {
+        const base64Data = await fileToGenerativePart(file);
+        parts.push(base64Data);
       }
     }
 
-    const data = await response.json();
-    return data;
+    const result = await model.generateContent(parts);
+    const response = await result.response;
+    const text = response.text();
+
+    const jsonString = text.replace(/```json\n|\n```/g, "").replace(/```/g, "");
+    return JSON.parse(jsonString);
 
   } catch (error) {
     console.error("Error generating test cases:", error);
+    if (error.message.includes("API key not valid")) {
+      throw new Error("Invalid API Key. Please check your configuration.");
+    }
     throw error;
   }
 };
 
 export const refineTestCases = async (currentTestCases, userInstructions) => {
   try {
-    // In development, use client-side SDK directly
-    if (isDevelopment) {
-      if (!API_KEY) {
-        throw new Error("Missing VITE_GEMINI_API_KEY in .env file for local development");
-      }
-
-      const genAI = new GoogleGenerativeAI(API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-
-      const prompt = `
-        You are an expert QA Automation Engineer.
-        Refine the following test cases based on the user's instructions.
-        
-        User Instructions: "${userInstructions}"
-        
-        Current Test Cases (JSON):
-        ${JSON.stringify(currentTestCases)}
-        
-        Output Format:
-        Provide a JSON object with two fields:
-        1. "suggestedFilename": "Updated filename if necessary, or keep the same"
-        2. "testCases": The updated JSON array of test case objects.
-        
-        Constraints:
-        - Return ONLY valid JSON.
-        - Maintain the same structure as the input.
-        - Apply the user's instructions accurately (e.g., add new cases, modify steps, change priorities).
-      `;
-
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-
-      const jsonString = text.replace(/```json\n|\n```/g, "").replace(/```/g, "");
-      return JSON.parse(jsonString);
+    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!API_KEY) {
+      throw new Error("Missing VITE_GEMINI_API_KEY in .env file");
     }
 
-    // In production, use Netlify Functions
-    const response = await fetch('/.netlify/functions/refine', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        testCases: currentTestCases,
-        instructions: userInstructions
-      }),
-    });
+    const genAI = new GoogleGenerativeAI(API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
-    if (!response.ok) {
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.indexOf("application/json") !== -1) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Server error: ${response.status}`);
-      } else {
-        const text = await response.text();
-        throw new Error(`Server error: ${response.status}. Response: ${text.slice(0, 100)}...`);
-      }
-    }
+    const prompt = `
+      You are an expert QA Automation Engineer.
+      Refine the following test cases based on the user's instructions.
+      
+      User Instructions: "${userInstructions}"
+      
+      Current Test Cases (JSON):
+      ${JSON.stringify(currentTestCases)}
+      
+      Output Format:
+      Provide a JSON object with two fields:
+      1. "suggestedFilename": "Updated filename if necessary, or keep the same"
+      2. "testCases": The updated JSON array of test case objects.
+      
+      Constraints:
+      - Return ONLY valid JSON.
+      - Maintain the same structure as the input.
+      - Apply the user's instructions accurately (e.g., add new cases, modify steps, change priorities).
+    `;
 
-    const data = await response.json();
-    return data;
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    const jsonString = text.replace(/```json\n|\n```/g, "").replace(/```/g, "");
+    return JSON.parse(jsonString);
   } catch (error) {
     console.error("Error refining test cases:", error);
     throw error;
