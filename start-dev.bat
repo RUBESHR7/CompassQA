@@ -1,0 +1,6 @@
+@echo off
+echo Stopping any running dev servers...
+taskkill /F /IM node.exe 2>nul
+timeout /t 2 /nobreak >nul
+echo Starting dev server with API key...
+npm run dev

@@ -22,9 +22,9 @@ const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 export const generateTestCases = async (userStory, screenshots) => {
   try {
-    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyB7D2riN0pLVIZGA11EZIQ3hTB89JgJYqM";
     if (!API_KEY) {
-      throw new Error("Missing VITE_GEMINI_API_KEY in .env file. Please add it to your .env file.");
+      throw new Error("Missing API Key");
     }
 
     console.log("Using client-side generation");
@@ -102,9 +102,9 @@ export const generateTestCases = async (userStory, screenshots) => {
 
 export const refineTestCases = async (currentTestCases, userInstructions) => {
   try {
-    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyB7D2riN0pLVIZGA11EZIQ3hTB89JgJYqM";
     if (!API_KEY) {
-      throw new Error("Missing VITE_GEMINI_API_KEY in .env file");
+      throw new Error("Missing API Key");
     }
 
     const genAI = new GoogleGenerativeAI(API_KEY);
