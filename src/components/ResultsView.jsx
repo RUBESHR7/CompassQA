@@ -37,7 +37,7 @@ const ResultsView = ({ testCases, filename, onExport, onReset, onUpdate }) => {
     try {
       const result = await refineTestCases(testCases, userMessage);
 
-      // Update test cases if returned
+      // Update test cases ONLY if returned (not null)
       if (result.testCases) {
         onUpdate(result.testCases, result.suggestedFilename);
       }

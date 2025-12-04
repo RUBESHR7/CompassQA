@@ -135,7 +135,7 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
       Provide a JSON object with three fields:
       1. "message": "Your conversational response to the user. If updating test cases, explain what you did. If just chatting, be friendly."
       2. "suggestedFilename": "Updated filename if necessary, or keep the same"
-      3. "testCases": The updated JSON array of test case objects. IF NO CHANGES are needed (just conversation), return the ORIGINAL test cases array.
+      3. "testCases": The updated JSON array of test case objects. IMPORTANT: If NO changes are needed (e.g., just a greeting or question), return null. Do NOT re-generate the full array unless you are modifying it.
       
       Constraints:
       - Return ONLY valid JSON.
