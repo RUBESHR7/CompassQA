@@ -22,14 +22,14 @@ const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 export const generateTestCases = async (userStory, testCaseId, screenshots) => {
   try {
-    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyAYI9VeSHBzh9ZPbKd9_7Vn2AQxDDpKzPo";
+    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyByNyfpPL_LwsKDJT7H1HCtFplmwJna2HI";
     if (!API_KEY) {
       throw new Error("Missing API Key");
     }
 
     console.log("Using client-side generation");
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     let prompt = `
       You are an expert QA Automation Engineer. 
@@ -105,13 +105,13 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
 
 export const refineTestCases = async (currentTestCases, userInstructions) => {
   try {
-    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyAYI9VeSHBzh9ZPbKd9_7Vn2AQxDDpKzPo";
+    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyByNyfpPL_LwsKDJT7H1HCtFplmwJna2HI";
     if (!API_KEY) {
       throw new Error("Missing API Key");
     }
 
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const prompt = `
       You are "Compass AI", an empathetic and expert QA Automation Engineer.
