@@ -7,7 +7,7 @@ const ResultsView = ({ testCases, filename, onExport, onReset, onUpdate }) => {
   const [chatInput, setChatInput] = useState('');
   const [isRefining, setIsRefining] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'ai', text: 'I can help you refine these test cases. Just tell me what to change! (e.g., "Add a negative case for invalid email")' }
+    { role: 'ai', text: 'Hi! I am Compass AI. I can help you refine these test cases or just chat. How can I help you?' }
   ]);
   const chatEndRef = useRef(null);
 
@@ -36,8 +36,14 @@ const ResultsView = ({ testCases, filename, onExport, onReset, onUpdate }) => {
 
     try {
       const result = await refineTestCases(testCases, userMessage);
-      onUpdate(result.testCases, result.suggestedFilename);
-      setMessages(prev => [...prev, { role: 'ai', text: `Done! I've updated the test cases and set the filename to "${result.suggestedFilename || filename}".` }]);
+
+      // Update test cases if returned
+      if (result.testCases) {
+        onUpdate(result.testCases, result.suggestedFilename);
+      }
+
+      // Show AI's conversational message
+      setMessages(prev => [...prev, { role: 'ai', text: result.message || "I've processed your request." }]);
     } catch (error) {
       console.error("Refinement error:", error);
       setMessages(prev => [...prev, { role: 'ai', text: `Sorry, I encountered an error: ${error.message}` }]);
