@@ -20,7 +20,7 @@ const fileToBase64 = (file) => {
 const isDevelopment = import.meta.env.DEV;
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-export const generateTestCases = async (userStory, screenshots) => {
+export const generateTestCases = async (userStory, testCaseId, screenshots) => {
   try {
     const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyB7D2riN0pLVIZGA11EZIQ3hTB89JgJYqM";
     if (!API_KEY) {
@@ -38,6 +38,9 @@ export const generateTestCases = async (userStory, screenshots) => {
       
       User Story:
       "${userStory}"
+
+      Test Case ID Format:
+      Start with the ID: "${testCaseId}" and increment sequentially (e.g., if input is 'TC_001', generate 'TC_001', 'TC_002', 'TC_003', etc.).
       
       Output Format:
       Provide a JSON object with two fields:
@@ -45,7 +48,7 @@ export const generateTestCases = async (userStory, screenshots) => {
       2. "testCases": A JSON array of objects with the following structure:
       [
         {
-          "id": "TC_XXX",
+          "id": "${testCaseId}",
           "summary": "Concise summary of the test case",
           "description": "Detailed description including the purpose",
           "preConditions": "Prerequisites required",

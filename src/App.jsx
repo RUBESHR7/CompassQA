@@ -59,7 +59,7 @@ function App() {
   const handleGenerate = async (data) => {
     setLoading(true);
     try {
-      const result = await generateTestCases(data.userStory, data.screenshots);
+      const result = await generateTestCases(data.userStory, data.testCaseId, data.screenshots);
       setTestCases(result.testCases);
       setFilename(result.suggestedFilename);
 
