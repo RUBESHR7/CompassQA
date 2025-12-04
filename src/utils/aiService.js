@@ -29,7 +29,7 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
 
     console.log("Using client-side generation");
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     let prompt = `
       You are an expert QA Automation Engineer. 
@@ -111,7 +111,7 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
     }
 
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
       You are "Compass AI", an empathetic and expert QA Automation Engineer.
