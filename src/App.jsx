@@ -142,7 +142,7 @@ function App() {
 
   return (
     <>
-      <Toaster position="top-center" theme="dark" duration={1500} />
+      <Toaster position="top-center" theme="dark" duration={3000} closeButton richColors />
       <BackgroundWaves />
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>

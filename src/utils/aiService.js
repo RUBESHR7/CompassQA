@@ -22,7 +22,7 @@ const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 export const generateTestCases = async (userStory, testCaseId, screenshots) => {
   try {
-    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyByNyfpPL_LwsKDJT7H1HCtFplmwJna2HI";
+    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
     if (!API_KEY) {
       throw new Error("Missing API Key");
     }
@@ -102,7 +102,7 @@ Requirements:
 
 export const refineTestCases = async (currentTestCases, userInstructions) => {
   try {
-    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyByNyfpPL_LwsKDJT7H1HCtFplmwJna2HI";
+    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
     if (!API_KEY) {
       throw new Error("Missing API Key");
     }
