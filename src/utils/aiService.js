@@ -29,53 +29,50 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
 
     console.log("Using client-side generation");
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 4096,
+      }
+    });
 
-    let prompt = `
-      You are an expert QA Automation Engineer. 
-      Analyze the following User Story and generate a comprehensive set of test cases covering all scenarios (positive, negative, edge cases).
-      Do not limit the number of test cases; generate as many as necessary to fully cover the user story.
-      
-      User Story:
-      "${userStory}"
+    let prompt = `Generate test cases for this user story: "${userStory}"
 
-      Test Case ID Format:
-      Start with the ID: "${testCaseId}" and increment sequentially (e.g., if input is 'TC_001', generate 'TC_001', 'TC_002', 'TC_003', etc.).
-      
-      Output Format:
-      Provide a JSON object with two fields:
-      1. "suggestedFilename": "A concise, professional filename based on the User Story (e.g., 'Login_Feature_TestCases.xlsx')"
-      2. "testCases": A JSON array of objects with the following structure:
-      [
+Start test case IDs with "${testCaseId}" and increment (${testCaseId}, ${testCaseId.replace(/\d+$/, m => String(Number(m) + 1))}, etc.).
+
+Return ONLY valid JSON (no markdown):
+{
+  "suggestedFilename": "descriptive_filename.xlsx",
+  "testCases": [
+    {
+      "id": "${testCaseId}",
+      "summary": "brief summary",
+      "description": "detailed description",
+      "preConditions": "prerequisites",
+      "steps": [
         {
-          "id": "${testCaseId}",
-          "summary": "Concise summary of the test case",
-          "description": "Detailed description including the purpose",
-          "preConditions": "Prerequisites required",
-          "steps": [
-            {
-              "stepNumber": 1,
-              "description": "Detailed action to perform (include all data requirements here)",
-              "inputData": "", 
-              "expectedOutcome": "Expected result of the step"
-            }
-          ],
-          "label": "Functional/UI/Security/Performance",
-          "priority": "High/Medium/Low",
-          "status": "Draft",
-          "executionMinutes": "Estimated time in minutes",
-          "caseFolder": "Module/Feature Name",
-          "testCategory": "Regression/Smoke/Sanity"
+          "stepNumber": 1,
+          "description": "action with all data (e.g., Enter 'user@test.com')",
+          "inputData": "",
+          "expectedOutcome": "expected result"
         }
-      ]
+      ],
+      "label": "Functional/UI/Security/Performance",
+      "priority": "High/Medium/Low",
+      "status": "Draft",
+      "executionMinutes": "5",
+      "caseFolder": "module name",
+      "testCategory": "Regression/Smoke/Sanity"
+    }
+  ]
+}
 
-      Constraints:
-      - The output must be valid JSON only. Do not include markdown code blocks.
-      - "inputData" field MUST BE EMPTY string "". All specific data (e.g., "Enter 'user@example.com'") must be included in the "description" field.
-      - Ensure test cases cover positive, negative, and edge cases.
-      - Test steps should be detailed (5-10 steps per case).
-      - Use the provided User Story to derive realistic input data and expected outcomes.
-    `;
+Requirements:
+- Cover positive, negative, edge cases
+- 5-7 steps per test case
+- inputData must be empty string ""
+- Include all data in description field`;
 
     const parts = [prompt];
 
@@ -111,7 +108,13 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
     }
 
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      generationConfig: {
+        temperature: 0.8,
+        maxOutputTokens: 2048,
+      }
+    });
 
     const prompt = `
       You are "Compass AI", an empathetic and expert QA Automation Engineer.
