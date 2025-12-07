@@ -25,11 +25,17 @@ const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || FALLBACK_KEY;
 
 // Model Priority List
 const MODEL_CANDIDATES = [
-  "gemini-1.5-flash",        // Primary: Fast, High Quota
-  "gemini-1.5-flash-latest", // Variant
-  "gemini-1.5-pro",          // Fallback: High Quality
-  "gemini-2.5-flash",        // Fallback: Newest (Low Quota)
-  "gemini-2.0-flash"         // Legacy Fallback
+  "gemini-1.5-flash",        // Primary
+  "gemini-1.5-flash-latest",
+  "gemini-1.5-flash-001",
+  "gemini-1.5-flash-002",
+  "gemini-2.5-flash",        // High perf
+  "gemini-2.0-flash-exp",    // Experimental
+  "gemini-exp-1114",         // Snapshot
+  "gemini-exp-1121",         // Snapshot
+  "gemini-exp-1206",         // Snapshot
+  "gemini-1.5-pro",
+  "learnlm-1.5-pro-experimental"
 ];
 
 // Helper to try generation with fallback models
