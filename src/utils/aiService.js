@@ -35,36 +35,39 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 8192,
+        responseMimeType: "application/json",
       }
     });
 
-    let prompt = `Generate a comprehensive and high-quantity set of test cases (aim for 50-100 if the story is complex enough) for this user story: "${userStory}"
+    // Requesting ~30-40 test cases to ensure they fit within the 8192 output token limit.
+    // 100 detailed test cases would exceed the limit (~10k+ tokens), causing JSON truncation errors.
+    let prompt = `Generate a comprehensive set of test cases (aim for 30-40 high-quality scenarios) for this user story: "${userStory}"
 
 Start test case IDs with "${testCaseId}" and increment sequentially.
 
-Return ONLY valid JSON (no markdown). The response must be a valid JSON object structure:
+Structure your response perfectly matches this JSON schema:
 {
   "suggestedFilename": "descriptive_filename.xlsx",
   "testCases": [
     {
-      "id": "${testCaseId}",
-      "summary": "brief summary",
-      "description": "detailed description",
-      "preConditions": "prerequisites",
+      "id": "string",
+      "summary": "string",
+      "description": "string",
+      "preConditions": "string",
       "steps": [
         {
           "stepNumber": 1,
-          "description": "action with all data (e.g., Enter 'user@test.com')",
-          "inputData": "",
-          "expectedOutcome": "expected result"
+          "description": "string",
+          "inputData": "string",
+          "expectedOutcome": "string"
         }
       ],
-      "label": "Functional/UI/Security/Performance",
-      "priority": "High/Medium/Low",
-      "status": "Draft",
-      "executionMinutes": "5",
-      "caseFolder": "module name",
-      "testCategory": "Regression/Smoke/Sanity"
+      "label": "string",
+      "priority": "string",
+      "status": "string",
+      "executionMinutes": "string",
+      "caseFolder": "string",
+      "testCategory": "string"
     }
   ]
 }
