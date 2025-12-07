@@ -18,7 +18,10 @@ const fileToBase64 = (file) => {
 
 // Check if we're in development mode
 const isDevelopment = import.meta.env.DEV;
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
+// Fallback key if .env is missing/blocked
+const FALLBACK_KEY = "AIzaSyCM08fMV2DfStVTTLAdluxyb6T0P51e_f4";
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || FALLBACK_KEY;
 
 // Internal function to generate a small batch of test cases
 const generateBatch = async (model, userStory, startId, count, screenshots, batchIndex) => {
@@ -81,28 +84,52 @@ const generateBatch = async (model, userStory, startId, count, screenshots, batc
 
       let jsonString = text.replace(/```json\n?|```/g, '');
       const firstBrace = jsonString.indexOf('{');
+      const firstBracket = jsonString.indexOf('[');
       const lastBrace = jsonString.lastIndexOf('}');
+      const lastBracket = jsonString.lastIndexOf(']');
 
-      if (firstBrace !== -1 && lastBrace !== -1) {
-        jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+      // Determine what to parse based on what comes first
+      let startIdx = -1;
+      let endIdx = -1;
+
+      if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+        startIdx = firstBrace;
+        endIdx = lastBrace;
+      } else if (firstBracket !== -1) {
+        startIdx = firstBracket;
+        endIdx = lastBracket;
+      }
+
+      if (startIdx !== -1 && endIdx !== -1) {
+        jsonString = jsonString.substring(startIdx, endIdx + 1);
         const parsed = JSON.parse(jsonString);
-        return parsed.testCases || [];
+
+        let cases = [];
+        if (Array.isArray(parsed)) {
+          cases = parsed;
+        } else if (parsed.testCases && Array.isArray(parsed.testCases)) {
+          cases = parsed.testCases;
+        } else if (parsed.test_cases && Array.isArray(parsed.test_cases)) {
+          cases = parsed.test_cases;
+        }
+
+        // Filter out malformed items
+        return cases.filter(c => c && typeof c === 'object');
       } else {
         throw new Error("Invalid JSON structure");
       }
     } catch (error) {
+      console.warn(`Batch ${batchIndex} failed attempt:`, error);
       if (retries === 0) {
-        console.warn(`Batch ${batchIndex} failed after retries:`, error);
-        return []; // Return empty for this batch instead of failing everything
+        console.error(`Batch ${batchIndex} permanently failed.`);
+        return []; // Return empty for this batch
       }
       if (error.status === 429 || error.message.includes("429") || error.message.includes("503")) {
         await new Promise(r => setTimeout(r, delay));
         delay *= 2;
         retries--;
       } else {
-        // Non-transient error, maybe malformed JSON
-        console.warn(`Batch ${batchIndex} error:`, error);
-        retries--; // Try again, maybe different generation will parse better
+        retries--;
       }
     }
   }
@@ -111,7 +138,7 @@ const generateBatch = async (model, userStory, startId, count, screenshots, batc
 
 export const generateTestCases = async (userStory, testCaseId, screenshots) => {
   try {
-    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || FALLBACK_KEY;
     if (!API_KEY) throw new Error("Missing API Key");
 
     const genAI = new GoogleGenerativeAI(API_KEY);
@@ -151,11 +178,14 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
     const allTestCases = results.flat();
 
     if (allTestCases.length === 0) {
-      throw new Error("Failed to generate any test cases. Please try again.");
+      throw new Error("Failed to generate any test cases. Please ensure your prompt is clear or try again.");
     }
 
     // Sort by ID to ensure correct order
-    allTestCases.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+    allTestCases.sort((a, b) => {
+      if (!a.id || !b.id) return 0;
+      return a.id.localeCompare(b.id, undefined, { numeric: true });
+    });
 
     return {
       suggestedFilename: "Generated_Test_Cases.xlsx",
@@ -173,7 +203,7 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
 
 export const refineTestCases = async (currentTestCases, userInstructions) => {
   try {
-    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || FALLBACK_KEY;
     if (!API_KEY) throw new Error("Missing API Key");
 
     const genAI = new GoogleGenerativeAI(API_KEY);
@@ -185,13 +215,6 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
         responseMimeType: "application/json",
       }
     });
-
-    // For refinement, we can't easily batch without complex logic. 
-    // We'll send a simplified version if list is huge, or just the top 20-30 for context if needed.
-    // For now, sending all but expecting potential truncation if > 50. 
-    // Optimization: Only send summaries if list is long? 
-    // Let's rely on 2.5-flash's large context window (1M tokens) handling input fine.
-    // The OUTPUT is the bottleneck.
 
     const prompt = `
       You are "Compass AI".
