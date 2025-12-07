@@ -20,16 +20,100 @@ const fileToBase64 = (file) => {
 const isDevelopment = import.meta.env.DEV;
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
+// Internal function to generate a small batch of test cases
+const generateBatch = async (model, userStory, startId, count, screenshots, batchIndex) => {
+  const prompt = `Generate exactly ${count} detailed test cases for this user story: "${userStory}"
+
+  Start test case IDs with "${startId}" and increment sequentially (e.g., if start is TC_001, generate TC_001 to TC_020).
+
+  Return ONLY valid JSON. Structure:
+  {
+    "testCases": [
+      {
+        "id": "${startId}",
+        "summary": "brief summary",
+        "description": "detailed description including all input data",
+        "preConditions": "prerequisites",
+        "steps": [
+          {
+            "stepNumber": 1,
+            "description": "action",
+            "inputData": "",
+            "expectedOutcome": "expected result"
+          }
+        ],
+        "label": "Functional/UI/Security/Performance",
+        "priority": "High/Medium/Low",
+        "status": "Draft",
+        "executionMinutes": "5",
+        "caseFolder": "module name",
+        "testCategory": "Regression/Smoke/Sanity"
+      }
+    ]
+  }
+
+  Requirements:
+  - Focus on a specific area: ${batchIndex === 0 ? "Positive Flows" : batchIndex === 1 ? "Negative Flows" : batchIndex === 2 ? "Edge Cases" : batchIndex === 3 ? "Security & Validation" : "Performance & Usability"}
+  - 5-7 steps per test case.
+  - inputData must be empty string "".
+  - Include all data in description field.`;
+
+  const parts = [prompt];
+
+  if (screenshots && screenshots.length > 0) {
+    parts.push("\n\nRefer to the attached screenshots for UI context:");
+    for (const file of screenshots) {
+      const base64Data = await fileToGenerativePart(file);
+      parts.push(base64Data);
+    }
+  }
+
+  // Retry logic for this specific batch
+  let retries = 3;
+  let delay = 2000 + (batchIndex * 1000); // Stagger retries to avoid thundering herd
+
+  while (retries >= 0) {
+    try {
+      const result = await model.generateContent(parts);
+      const response = await result.response;
+      const text = response.text();
+
+      let jsonString = text.replace(/```json\n?|```/g, '');
+      const firstBrace = jsonString.indexOf('{');
+      const lastBrace = jsonString.lastIndexOf('}');
+
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+        const parsed = JSON.parse(jsonString);
+        return parsed.testCases || [];
+      } else {
+        throw new Error("Invalid JSON structure");
+      }
+    } catch (error) {
+      if (retries === 0) {
+        console.warn(`Batch ${batchIndex} failed after retries:`, error);
+        return []; // Return empty for this batch instead of failing everything
+      }
+      if (error.status === 429 || error.message.includes("429") || error.message.includes("503")) {
+        await new Promise(r => setTimeout(r, delay));
+        delay *= 2;
+        retries--;
+      } else {
+        // Non-transient error, maybe malformed JSON
+        console.warn(`Batch ${batchIndex} error:`, error);
+        retries--; // Try again, maybe different generation will parse better
+      }
+    }
+  }
+  return [];
+};
+
 export const generateTestCases = async (userStory, testCaseId, screenshots) => {
   try {
     const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!API_KEY) {
-      throw new Error("Missing API Key");
-    }
+    if (!API_KEY) throw new Error("Missing API Key");
 
-    console.log("Using client-side generation");
     const genAI = new GoogleGenerativeAI(API_KEY);
-    // Switch to gemini-2.5-flash as it is at the top of the available list and may have better quotas
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
       generationConfig: {
@@ -39,101 +123,43 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
       }
     });
 
-    // Requesting ~30-40 test cases to ensure they fit within the 8192 output token limit.
-    // 100 detailed test cases would exceed the limit (~10k+ tokens), causing JSON truncation errors.
-    let prompt = `Generate a comprehensive set of test cases (aim for 30-40 high-quality scenarios) for this user story: "${userStory}"
+    console.log("Starting parallel batch generation...");
 
-Start test case IDs with "${testCaseId}" and increment sequentially.
+    // We want ~100 cases. split into 5 batches of 20
+    const batches = 5;
+    const casesPerBatch = 20;
+    const promises = [];
 
-Structure your response perfectly matches this JSON schema:
-{
-  "suggestedFilename": "descriptive_filename.xlsx",
-  "testCases": [
-    {
-      "id": "string",
-      "summary": "string",
-      "description": "string",
-      "preConditions": "string",
-      "steps": [
-        {
-          "stepNumber": 1,
-          "description": "string",
-          "inputData": "string",
-          "expectedOutcome": "string"
-        }
-      ],
-      "label": "string",
-      "priority": "string",
-      "status": "string",
-      "executionMinutes": "string",
-      "caseFolder": "string",
-      "testCategory": "string"
-    }
-  ]
-}
+    // Parse ID to handle incrementing (e.g. TC_001 -> TC_021)
+    const idPrefix = testCaseId.match(/^[a-zA-Z_-]+/)?.[0] || "TC_";
+    const idNumStr = testCaseId.match(/\d+$/)?.[0] || "1";
+    const startNum = parseInt(idNumStr, 10);
+    const idLength = idNumStr.length;
 
-Requirements:
-- Cover positive, negative, edge cases, and security scenarios.
-- 5-7 steps per test case.
-- inputData must be empty string "".
-- Include all data in description field.`;
+    for (let i = 0; i < batches; i++) {
+      const batchStartNum = startNum + (i * casesPerBatch);
+      const batchStartId = `${idPrefix}${String(batchStartNum).padStart(idLength, '0')}`;
 
-    const parts = [prompt];
-
-    if (screenshots && screenshots.length > 0) {
-      parts.push("\n\nRefer to the attached screenshots for UI context:");
-      for (const file of screenshots) {
-        const base64Data = await fileToGenerativePart(file);
-        parts.push(base64Data);
-      }
+      promises.push(generateBatch(model, userStory, batchStartId, casesPerBatch, screenshots, i));
     }
 
-    // Implementing Retry with Exponential Backoff
-    let retries = 3;
-    let delay = 3000; // Start with 3 seconds
+    // Wait for all batches
+    const results = await Promise.all(promises);
 
-    while (retries >= 0) {
-      try {
-        const result = await model.generateContent(parts);
-        const response = await result.response;
-        const text = response.text();
+    // Combine results
+    const allTestCases = results.flat();
 
-        console.log("Raw AI response length:", text.length);
-
-        // Robust JSON extraction
-        let jsonString = text;
-        // Remove markdown code blocks if present
-        jsonString = jsonString.replace(/```json\n?|```/g, '');
-
-        // Find the first '{' and last '}'
-        const firstBrace = jsonString.indexOf('{');
-        const lastBrace = jsonString.lastIndexOf('}');
-
-        if (firstBrace !== -1 && lastBrace !== -1) {
-          jsonString = jsonString.substring(firstBrace, lastBrace + 1);
-        } else {
-          throw new Error("Invalid JSON structure in AI response");
-        }
-
-        return JSON.parse(jsonString);
-
-      } catch (error) {
-        // Handle 503 (Service Unavailable) and 429 (Too Many Requests)
-        if (error.status === 503 || error.status === 429 || error.message.includes("429") || error.message.includes("503")) {
-          if (retries === 0) {
-            console.error("Max retries reached.");
-            throw new Error(`Service busy or rate limit reached. Please wait a minute and try again. (${error.message})`);
-          }
-          console.warn(`Attempt failed (Rate Limit/Service Busy). Retrying in ${delay}ms... (${retries} attempts left)`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          delay *= 2; // Double delay for next retry
-          retries--;
-        } else {
-          // If it's another error (e.g., API key, invalid request), throw immediately
-          throw error;
-        }
-      }
+    if (allTestCases.length === 0) {
+      throw new Error("Failed to generate any test cases. Please try again.");
     }
+
+    // Sort by ID to ensure correct order
+    allTestCases.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+
+    return {
+      suggestedFilename: "Generated_Test_Cases.xlsx",
+      testCases: allTestCases
+    };
 
   } catch (error) {
     console.error("Error generating test cases:", error);
@@ -147,47 +173,34 @@ Requirements:
 export const refineTestCases = async (currentTestCases, userInstructions) => {
   try {
     const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!API_KEY) {
-      throw new Error("Missing API Key");
-    }
+    if (!API_KEY) throw new Error("Missing API Key");
 
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash", // Use same model for consistency
+      model: "gemini-2.5-flash",
       generationConfig: {
         temperature: 0.8,
         maxOutputTokens: 8192,
+        responseMimeType: "application/json",
       }
     });
 
-    const prompt = `
-      You are "Compass AI", an empathetic and expert QA Automation Engineer.
-      
-      Your Persona:
-      - Name: Compass AI
-      - Tone: Professional, warm, empathetic, and helpful.
-      - Capabilities: You can refine test cases AND engage in friendly conversation.
-      - Responses: 
-        - If the user says "hi", "hello", etc., respond warmly as Compass AI.
-        - If the user says "thank you", respond with "You're welcome! Happy to help."
-        - If the user expresses frustration or emotion, respond with empathy and understanding before offering technical help.
-        - If the user asks to modify test cases, perform the modification with precision.
+    // For refinement, we can't easily batch without complex logic. 
+    // We'll send a simplified version if list is huge, or just the top 20-30 for context if needed.
+    // For now, sending all but expecting potential truncation if > 50. 
+    // Optimization: Only send summaries if list is long? 
+    // Let's rely on 2.5-flash's large context window (1M tokens) handling input fine.
+    // The OUTPUT is the bottleneck.
 
+    const prompt = `
+      You are "Compass AI".
       User Input: "${userInstructions}"
       
       Current Test Cases (JSON):
       ${JSON.stringify(currentTestCases)}
       
-      Output Format:
-      Provide a JSON object with three fields:
-      1. "message": "Your conversational response to the user. If updating test cases, explain what you did. If just chatting, be friendly."
-      2. "suggestedFilename": "Updated filename if necessary, or keep the same"
-      3. "testCases": The updated JSON array of test case objects. IMPORTANT: If NO changes are needed (e.g., just a greeting or question), return null. Do NOT re-generate the full array unless you are modifying it.
-      
-      Constraints:
-      - Return ONLY valid JSON.
-      - Maintain the same structure as the input for test cases.
-      - Always provide a "message" field.
+      Update the test cases based on the instructions.
+      Return JSON: { "message": "string", "suggestedFilename": "string", "testCases": [] }
     `;
 
     const result = await model.generateContent(prompt);
@@ -203,7 +216,7 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
 
     return JSON.parse(jsonString);
   } catch (error) {
-    console.error("Error refining test cases:", error);
+    console.error("Refinement error:", error);
     throw error;
   }
 };
