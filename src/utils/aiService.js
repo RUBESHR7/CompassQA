@@ -200,6 +200,43 @@ const generateBatch = async (genAI, userStory, startId, count, screenshots, batc
 export const generateTestCases = async (userStory, testCaseId, screenshots) => {
   try {
     if (!API_KEY) throw new Error("Missing API Key");
+
+    const genAI = new GoogleGenerativeAI(API_KEY);
+
+    console.log("Starting batch generation...");
+
+    // SAFE MODE: 1 Batch of 15 Test Cases
+    const batches = 1;
+    const casesPerBatch = 15;
+    const allTestCases = [];
+    const errors = [];
+
+    // Parse ID
+    const idPrefix = testCaseId.match(/^[a-zA-Z_-]+/)?.[0] || "TC_";
+    const idNumStr = testCaseId.match(/\d+$/)?.[0] || "1";
+    const startNum = parseInt(idNumStr, 10);
+    const idLength = idNumStr.length;
+
+    // Execute Generation
+    for (let i = 0; i < batches; i++) {
+      const batchStartNum = startNum + (i * casesPerBatch);
+      const batchStartId = `${idPrefix}${String(batchStartNum).padStart(idLength, '0')}`;
+
+      try {
+        console.log(`Generating Batch ${i + 1}/${batches}...`);
+        const batchCases = await generateBatch(genAI, userStory, batchStartId, casesPerBatch, screenshots, i);
+        allTestCases.push(...batchCases);
+      } catch (err) {
+        console.error(`Batch ${i + 1} failed:`, err);
+        errors.push(`Batch ${i + 1}: ${err.message}`);
+      }
+    }
+
+    if (allTestCases.length === 0) {
+      throw new Error(`Failed to generate any test cases. Errors: ${errors.join("; ")}`);
+    }
+
+    // Sort by ID
     allTestCases.sort((a, b) => {
       if (!a.id || !b.id) return 0;
       return a.id.localeCompare(b.id, undefined, { numeric: true });
