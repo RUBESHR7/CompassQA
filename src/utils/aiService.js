@@ -200,6 +200,51 @@ const generateBatch = async (genAI, userStory, startId, count, screenshots, batc
 export const generateTestCases = async (userStory, testCaseId, screenshots) => {
   try {
     if (!API_KEY) throw new Error("Missing API Key");
+
+    const genAI = new GoogleGenerativeAI(API_KEY);
+
+    console.log("Starting batch generation...");
+
+    // OPTIMIZED CONFIGURATION
+    // 1 Batch of 40 failed (empty response). 5 Batches of 20 burns quota.
+    // SWEET SPOT: 2 Batches of 20 = 40 Test Cases.
+    // Consumes 2 Requests per run. Daily Limit 20 enables ~10 runs/day.
+    const batches = 2;
+    const casesPerBatch = 20;
+    const allTestCases = [];
+    const errors = [];
+
+    // Parse ID
+    const idPrefix = testCaseId.match(/^[a-zA-Z_-]+/)?.[0] || "TC_";
+    const idNumStr = testCaseId.match(/\d+$/)?.[0] || "1";
+    const startNum = parseInt(idNumStr, 10);
+    const idLength = idNumStr.length;
+
+    // Execute IN PARALLEL
+    const batchPromises = [];
+    for (let i = 0; i < batches; i++) {
+      const batchStartNum = startNum + (i * casesPerBatch);
+      const batchStartId = `${idPrefix}${String(batchStartNum).padStart(idLength, '0')}`;
+
+      console.log(`Starting Batch ${i + 1}/${batches} (Parallel)...`);
+      batchPromises.push(
+        generateBatch(genAI, userStory, batchStartId, casesPerBatch, screenshots, i)
+          .catch(err => {
+            console.error(`Batch ${i + 1} failed:`, err);
+            errors.push(`Batch ${i + 1}: ${err.message}`);
+            return [];
+          })
+      );
+    }
+
+    const results = await Promise.all(batchPromises);
+    results.forEach(batchCases => allTestCases.push(...batchCases));
+
+    if (allTestCases.length === 0) {
+      throw new Error(`Failed to generate any test cases. Errors: ${errors.join("; ")}`);
+    }
+
+    // Sort by ID
     allTestCases.sort((a, b) => {
       if (!a.id || !b.id) return 0;
       return a.id.localeCompare(b.id, undefined, { numeric: true });
