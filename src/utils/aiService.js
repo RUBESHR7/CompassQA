@@ -74,7 +74,7 @@ const generateBatch = async (model, userStory, startId, count, screenshots, batc
 
   // Retry logic for this specific batch
   let retries = 3;
-  let delay = 2000 + (batchIndex * 1000); // Stagger retries to avoid thundering herd
+  let delay = 3000;
 
   while (retries >= 0) {
     try {
@@ -88,7 +88,6 @@ const generateBatch = async (model, userStory, startId, count, screenshots, batc
       const lastBrace = jsonString.lastIndexOf('}');
       const lastBracket = jsonString.lastIndexOf(']');
 
-      // Determine what to parse based on what comes first
       let startIdx = -1;
       let endIdx = -1;
 
@@ -116,15 +115,17 @@ const generateBatch = async (model, userStory, startId, count, screenshots, batc
         // Filter out malformed items
         return cases.filter(c => c && typeof c === 'object');
       } else {
-        throw new Error("Invalid JSON structure");
+        throw new Error("Invalid JSON structure received from AI");
       }
     } catch (error) {
-      console.warn(`Batch ${batchIndex} failed attempt:`, error);
+      console.warn(`Batch ${batchIndex} attempt failed:`, error.message);
       if (retries === 0) {
         console.error(`Batch ${batchIndex} permanently failed.`);
-        return []; // Return empty for this batch
+        // Bubble up error string for debugging if needed, but reducing noise
+        throw error;
       }
       if (error.status === 429 || error.message.includes("429") || error.message.includes("503")) {
+        console.warn(`Batch ${batchIndex} hit rate limit. Waiting ${delay}ms...`);
         await new Promise(r => setTimeout(r, delay));
         delay *= 2;
         retries--;
@@ -133,7 +134,7 @@ const generateBatch = async (model, userStory, startId, count, screenshots, batc
       }
     }
   }
-  return [];
+  throw new Error(`Batch ${batchIndex} failed after retries`);
 };
 
 export const generateTestCases = async (userStory, testCaseId, screenshots) => {
@@ -151,37 +152,40 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
       }
     });
 
-    console.log("Starting parallel batch generation...");
+    console.log("Starting batch generation (Sequential for stability)...");
 
-    // We want ~100 cases. split into 5 batches of 20
     const batches = 5;
     const casesPerBatch = 20;
-    const promises = [];
+    const allTestCases = [];
+    const errors = [];
 
-    // Parse ID to handle incrementing (e.g. TC_001 -> TC_021)
+    // Parse ID
     const idPrefix = testCaseId.match(/^[a-zA-Z_-]+/)?.[0] || "TC_";
     const idNumStr = testCaseId.match(/\d+$/)?.[0] || "1";
     const startNum = parseInt(idNumStr, 10);
     const idLength = idNumStr.length;
 
+    // Execute SEQUENTIALLY to avoid Rate Limits (429)
     for (let i = 0; i < batches; i++) {
       const batchStartNum = startNum + (i * casesPerBatch);
       const batchStartId = `${idPrefix}${String(batchStartNum).padStart(idLength, '0')}`;
 
-      promises.push(generateBatch(model, userStory, batchStartId, casesPerBatch, screenshots, i));
+      try {
+        console.log(`Generating Batch ${i + 1}/${batches}...`);
+        const batchCases = await generateBatch(model, userStory, batchStartId, casesPerBatch, screenshots, i);
+        allTestCases.push(...batchCases);
+      } catch (err) {
+        console.error(`Batch ${i + 1} failed:`, err);
+        errors.push(`Batch ${i + 1}: ${err.message}`);
+        // Continue to next batch even if one fails
+      }
     }
-
-    // Wait for all batches
-    const results = await Promise.all(promises);
-
-    // Combine results
-    const allTestCases = results.flat();
 
     if (allTestCases.length === 0) {
-      throw new Error("Failed to generate any test cases. Please ensure your prompt is clear or try again.");
+      throw new Error(`Failed to generate any test cases. Errors: ${errors.join("; ")}`);
     }
 
-    // Sort by ID to ensure correct order
+    // Sort by ID
     allTestCases.sort((a, b) => {
       if (!a.id || !b.id) return 0;
       return a.id.localeCompare(b.id, undefined, { numeric: true });
