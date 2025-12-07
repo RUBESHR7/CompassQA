@@ -20,7 +20,7 @@ const fileToBase64 = (file) => {
 const isDevelopment = import.meta.env.DEV;
 
 // FORCE USAGE of the new validated key (Hardcoded to bypass stale GitHub Secrets)
-const HARDCODED_KEY = "AIzaSyDCIvnH-ruTZxuluas_DVhDyFBZUHVhek4";
+const HARDCODED_KEY = "AIzaSyAHTleIpwchp-ijy9zFStXZpzzGM0_VWw0";
 const ENV_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const API_KEY = HARDCODED_KEY || ENV_KEY;
 
