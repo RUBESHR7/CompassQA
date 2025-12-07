@@ -120,7 +120,6 @@ const generateBatch = async (model, userStory, startId, count, screenshots, batc
       console.warn(`Batch ${batchIndex} attempt failed:`, error.message);
       if (retries === 0) {
         console.error(`Batch ${batchIndex} permanently failed.`);
-        // Bubble up error string for debugging if needed, but reducing noise
         throw error;
       }
       if (error.status === 429 || error.message.includes("429") || error.message.includes("503")) {
@@ -173,10 +172,17 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
         console.log(`Generating Batch ${i + 1}/${batches}...`);
         const batchCases = await generateBatch(model, userStory, batchStartId, casesPerBatch, screenshots, i);
         allTestCases.push(...batchCases);
+
+        // Add safety delay between batches to respect 15 RPM limit (1 req / 4s)
+        // If generation takes 2s + 4s wait = 6s total per req = 10 RPM (Safe)
+        if (i < batches - 1) {
+          console.log("Throttling for rate limit safety...");
+          await new Promise(resolve => setTimeout(resolve, 4000));
+        }
+
       } catch (err) {
         console.error(`Batch ${i + 1} failed:`, err);
         errors.push(`Batch ${i + 1}: ${err.message}`);
-        // Continue to next batch even if one fails
       }
     }
 
