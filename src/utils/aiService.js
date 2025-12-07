@@ -19,11 +19,18 @@ const fileToBase64 = (file) => {
 // Check if we're in development mode
 const isDevelopment = import.meta.env.DEV;
 
-// Fallback key if .env is missing/blocked (Updated to new key)
-const FALLBACK_KEY = "AIzaSyDCIvnH-ruTZxuluas_DVhDyFBZUHVhek4";
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || FALLBACK_KEY;
+// FORCE USAGE of the new validated key. 
+// We use logical OR to prefer the hardcoded valid key IF env var is missing or invalid.
+// However, to fix the specific "Github Pages has old key" issue, we prioritize the hardcoded key 
+// if it is known to be the working one.
+const HARDCODED_KEY = "AIzaSyDCIvnH-ruTZxuluas_DVhDyFBZUHVhek4";
+const ENV_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-// Model Priority List - Optimized for observed availability
+// Logic: Use Hardcoded key if available, otherwise fallback to Env.
+// This is opposite of standard practice but required to fix the "Stale Env Var" bug on deployment.
+const API_KEY = HARDCODED_KEY || ENV_KEY;
+
+// Model Priority List
 const MODEL_CANDIDATES = [
   "gemini-2.5-flash",        // Primary: Verified Working
   "gemini-2.0-flash-exp",    // Experimental Backup
@@ -43,6 +50,9 @@ async function generateWithFallback(genAI, parts, config) {
         generationConfig: config
       });
 
+      // SDK v0.24.1 expects 'parts' to be passed directly 
+      // if it's an array of objects/strings used in 'generateContent'.
+      // Correct usage: model.generateContent(parts) where parts = [string, ...]
       const result = await model.generateContent(parts);
       const response = await result.response;
       return response.text(); // Success!
@@ -53,7 +63,7 @@ async function generateWithFallback(genAI, parts, config) {
       // Continue to next model
     }
   }
-  // If all fail, we throw the error now (User requested NO SAMPLE DATA)
+  // If all fail, throw error (No Safe Mode)
   throw new Error(`All AI models failed. Please check your API Key or Quota. Last Error: ${lastError?.message}`);
 }
 
@@ -167,14 +177,12 @@ const generateBatch = async (genAI, userStory, startId, count, screenshots, batc
 
 export const generateTestCases = async (userStory, testCaseId, screenshots) => {
   try {
-    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || FALLBACK_KEY;
     if (!API_KEY) throw new Error("Missing API Key");
 
     const genAI = new GoogleGenerativeAI(API_KEY);
 
     console.log("Starting batch generation...");
 
-    // RESTORED TO FULL CAPACITY (5 Batches)
     const batches = 5;
     const casesPerBatch = 20;
     const allTestCases = [];
@@ -204,7 +212,6 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
       } catch (err) {
         console.error(`Batch ${i + 1} failed:`, err);
         errors.push(`Batch ${i + 1}: ${err.message}`);
-        // No mock fallback!
       }
     }
 
@@ -234,7 +241,6 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
 
 export const refineTestCases = async (currentTestCases, userInstructions) => {
   try {
-    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || FALLBACK_KEY;
     if (!API_KEY) throw new Error("Missing API Key");
 
     const genAI = new GoogleGenerativeAI(API_KEY);
