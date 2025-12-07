@@ -56,11 +56,10 @@ const generateBatch = async (model, userStory, startId, count, screenshots, batc
   }
 
   Requirements:
-  - Generate a set of unique test cases that are distinct from other potential scenarios.
-  - Since this is batch ${batchIndex + 1} of 5 (Total aim: 100 cases), please ensure this specific batch explores ${batchIndex === 0 ? "Core Positive Flows and Critical Paths" : batchIndex === 1 ? "Negative Scenarios and Validation Errors" : batchIndex === 2 ? "Edge Cases, Boundaries, and Limits" : batchIndex === 3 ? "Advanced/Complex Workflows and Security" : "Performance, Usability, and Cross-Platform Scenarios"} in depth.
-  - However, you are FREE to include any relevant test case that fits the user story.
-  - Test steps should be detailed and logical (no fixed step count).
-  - Include realistic input data where applicable in the description or expected outcome.`;
+  - Cover positive, negative, edge cases, and security scenarios.
+  - 5-7 steps per test case.
+  - inputData must be empty string "".
+  - Include all data in description field.`;
 
   const parts = [prompt];
 
