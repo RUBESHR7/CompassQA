@@ -19,57 +19,18 @@ const fileToBase64 = (file) => {
 // Check if we're in development mode
 const isDevelopment = import.meta.env.DEV;
 
-// Fallback key if .env is missing/blocked
+// Fallback key if .env is missing/blocked (Updated to new key)
 const FALLBACK_KEY = "AIzaSyDCIvnH-ruTZxuluas_DVhDyFBZUHVhek4";
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || FALLBACK_KEY;
 
-// Model Priority List
+// Model Priority List - Optimized for observed availability
 const MODEL_CANDIDATES = [
-  "gemini-1.5-flash",        // Primary
+  "gemini-2.5-flash",        // Primary: Verified Working
+  "gemini-2.0-flash-exp",    // Experimental Backup
+  "gemini-1.5-flash",        // Legacy (often 404)
   "gemini-1.5-flash-latest",
-  "gemini-1.5-flash-001",
-  "gemini-1.5-flash-002",
-  "gemini-2.5-flash",        // High perf
-  "gemini-2.0-flash-exp",    // Experimental
-  "gemini-exp-1114",         // Snapshot
-  "gemini-exp-1121",         // Snapshot
-  "gemini-exp-1206",         // Snapshot
   "gemini-1.5-pro",
-  "learnlm-1.5-pro-experimental"
 ];
-
-// Mock Data for Safe Mode
-const MOCK_TEST_CASE = {
-  suggestedFilename: "Safe_Mode_Test_Cases.xlsx",
-  testCases: [
-    {
-      id: "TC_001_MOCK",
-      summary: "Safe Mode: Login Verification (API Quota Exceeded)",
-      description: "This is a generated test case because the Google API Quota is currently exhausted (Limit: 20/day). Please try again tomorrow for AI generation.",
-      preConditions: "Application is accessible",
-      steps: [
-        {
-          stepNumber: 1,
-          description: "Navigate to the Login Page",
-          inputData: "",
-          expectedOutcome: "Login page loads successfully"
-        },
-        {
-          stepNumber: 2,
-          description: "Enter valid credentials",
-          inputData: "",
-          expectedOutcome: "Credentials accepted"
-        }
-      ],
-      label: "Functional",
-      priority: "High",
-      status: "Draft",
-      executionMinutes: "5",
-      caseFolder: "Auth",
-      testCategory: "Smoke"
-    }
-  ]
-};
 
 // Helper to try generation with fallback models
 async function generateWithFallback(genAI, parts, config) {
@@ -77,7 +38,6 @@ async function generateWithFallback(genAI, parts, config) {
 
   for (const modelName of MODEL_CANDIDATES) {
     try {
-      // console.log(`Attempting generation with model: ${modelName}`); 
       const model = genAI.getGenerativeModel({
         model: modelName,
         generationConfig: config
@@ -90,9 +50,11 @@ async function generateWithFallback(genAI, parts, config) {
     } catch (error) {
       console.warn(`Model ${modelName} failed: ${error.message}`);
       lastError = error;
+      // Continue to next model
     }
   }
-  throw new Error(`All models failed. Last error: ${lastError?.message}`);
+  // If all fail, we throw the error now (User requested NO SAMPLE DATA)
+  throw new Error(`All AI models failed. Please check your API Key or Quota. Last Error: ${lastError?.message}`);
 }
 
 // Internal function to generate a small batch of test cases
@@ -143,7 +105,7 @@ const generateBatch = async (genAI, userStory, startId, count, screenshots, batc
     }
   }
 
-  // Retry logic for this specific batch (Model fallback is inside)
+  // Retry logic for this specific batch
   let retries = 1;
   let delay = 2000;
 
@@ -185,6 +147,7 @@ const generateBatch = async (genAI, userStory, startId, count, screenshots, batc
           cases = parsed.test_cases;
         }
 
+        // Filter out malformed
         return cases.filter(c => c && typeof c === 'object');
       } else {
         throw new Error("Invalid JSON structure received from AI");
@@ -209,9 +172,9 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
 
     const genAI = new GoogleGenerativeAI(API_KEY);
 
-    console.log("Starting batch generation (Safe Mode Enabled)...");
+    console.log("Starting batch generation...");
 
-    // REDUCED TO 1 BATCH to save time/resources when we know it might fail
+    // RESTORED TO FULL CAPACITY (5 Batches)
     const batches = 5;
     const casesPerBatch = 20;
     const allTestCases = [];
@@ -224,8 +187,6 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
     const idLength = idNumStr.length;
 
     // Execute SEQUENTIALLY
-    let usedMock = false;
-
     for (let i = 0; i < batches; i++) {
       const batchStartNum = startNum + (i * casesPerBatch);
       const batchStartId = `${idPrefix}${String(batchStartNum).padStart(idLength, '0')}`;
@@ -235,6 +196,7 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
         const batchCases = await generateBatch(genAI, userStory, batchStartId, casesPerBatch, screenshots, i);
         allTestCases.push(...batchCases);
 
+        // Safety throttle betwen batches
         if (i < batches - 1) {
           await new Promise(resolve => setTimeout(resolve, 4000));
         }
@@ -242,22 +204,12 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
       } catch (err) {
         console.error(`Batch ${i + 1} failed:`, err);
         errors.push(`Batch ${i + 1}: ${err.message}`);
-
-        // ACTIVATE SAFE MODE MOCK if critical failure
-        if (!usedMock) {
-          console.warn("Returning MOCK data due to API failure.");
-          const mock = JSON.parse(JSON.stringify(MOCK_TEST_CASE.testCases));
-          mock[0].id = batchStartId; // Update mock ID
-          allTestCases.push(...mock);
-          usedMock = true; // Only add mock once per failure loop
-          break; // Stop trying other batches if we are mocked
-        }
+        // No mock fallback!
       }
     }
 
     if (allTestCases.length === 0) {
-      // Fallback if everything failed immediately
-      return MOCK_TEST_CASE;
+      throw new Error(`Failed to generate any test cases. Errors: ${errors.join("; ")}`);
     }
 
     // Sort by ID
@@ -276,8 +228,7 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
     if (error.message.includes("API key not valid")) {
       throw new Error("Invalid API Key. Please check your configuration.");
     }
-    // Return mock even on top level error
-    return MOCK_TEST_CASE;
+    throw error;
   }
 };
 
@@ -288,7 +239,6 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
 
     const genAI = new GoogleGenerativeAI(API_KEY);
 
-    // Also use fallback for refinement
     const prompt = `
       You are "Compass AI".
       User Input: "${userInstructions}"
@@ -316,7 +266,6 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
     return JSON.parse(jsonString);
   } catch (error) {
     console.error("Refinement error:", error);
-    // Throw error here as mock refinement is harder and mostly UI
     throw error;
   }
 };
