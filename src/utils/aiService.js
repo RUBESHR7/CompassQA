@@ -23,8 +23,45 @@ const isDevelopment = import.meta.env.DEV;
 const FALLBACK_KEY = "AIzaSyCM08fMV2DfStVTTLAdluxyb6T0P51e_f4";
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || FALLBACK_KEY;
 
+// Model Priority List
+const MODEL_CANDIDATES = [
+  "gemini-1.5-flash",        // Primary: Fast, High Quota
+  "gemini-1.5-flash-latest", // Variant
+  "gemini-1.5-pro",          // Fallback: High Quality
+  "gemini-2.5-flash",        // Fallback: Newest (Low Quota)
+  "gemini-2.0-flash"         // Legacy Fallback
+];
+
+// Helper to try generation with fallback models
+async function generateWithFallback(genAI, parts, config) {
+  let lastError = null;
+
+  for (const modelName of MODEL_CANDIDATES) {
+    try {
+      // console.log(`Attempting generation with model: ${modelName}`); 
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: config
+      });
+
+      const result = await model.generateContent(parts);
+      const response = await result.response;
+      return response.text(); // Success!
+
+    } catch (error) {
+      console.warn(`Model ${modelName} failed: ${error.message}`);
+      lastError = error;
+
+      // If it's a structural error (not API limit/404), maybe strictly rethrowing isn't needed if we want to try others,
+      // but usually 404/429/503 are the ones to retry.
+      // If API Key is invalid, all will fail, which is fine.
+    }
+  }
+  throw new Error(`All models failed. Last error: ${lastError?.message}`);
+}
+
 // Internal function to generate a small batch of test cases
-const generateBatch = async (model, userStory, startId, count, screenshots, batchIndex) => {
+const generateBatch = async (genAI, userStory, startId, count, screenshots, batchIndex) => {
   const prompt = `Generate exactly ${count} detailed test cases for this user story: "${userStory}"
 
   Start test case IDs with "${startId}" and increment sequentially (e.g., if start is TC_001, generate TC_001 to TC_020).
@@ -71,15 +108,17 @@ const generateBatch = async (model, userStory, startId, count, screenshots, batc
     }
   }
 
-  // Retry logic for this specific batch
-  let retries = 3;
-  let delay = 3000;
+  // Retry logic for this specific batch (Model fallback is inside)
+  let retries = 2; // Reduced retries since we iterate models
+  let delay = 2000;
 
   while (retries >= 0) {
     try {
-      const result = await model.generateContent(parts);
-      const response = await result.response;
-      const text = response.text();
+      const text = await generateWithFallback(genAI, parts, {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+        responseMimeType: "application/json",
+      });
 
       let jsonString = text.replace(/```json\n?|```/g, '');
       const firstBrace = jsonString.indexOf('{');
@@ -122,14 +161,11 @@ const generateBatch = async (model, userStory, startId, count, screenshots, batc
         console.error(`Batch ${batchIndex} permanently failed.`);
         throw error;
       }
-      if (error.status === 429 || error.message.includes("429") || error.message.includes("503")) {
-        console.warn(`Batch ${batchIndex} hit rate limit. Waiting ${delay}ms...`);
-        await new Promise(r => setTimeout(r, delay));
-        delay *= 2;
-        retries--;
-      } else {
-        retries--;
-      }
+      // Determine if it's a retryable error (though fallback handles most)
+      // We still retry for transient JSON/Parsing errors
+      await new Promise(r => setTimeout(r, delay));
+      delay *= 2;
+      retries--;
     }
   }
   throw new Error(`Batch ${batchIndex} failed after retries`);
@@ -141,16 +177,8 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
     if (!API_KEY) throw new Error("Missing API Key");
 
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 8192,
-        responseMimeType: "application/json",
-      }
-    });
 
-    console.log("Starting batch generation (Sequential for stability)...");
+    console.log("Starting batch generation (Sequential + Multi-Model Fallback)...");
 
     const batches = 5;
     const casesPerBatch = 20;
@@ -163,20 +191,18 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
     const startNum = parseInt(idNumStr, 10);
     const idLength = idNumStr.length;
 
-    // Execute SEQUENTIALLY to avoid Rate Limits (429)
+    // Execute SEQUENTIALLY
     for (let i = 0; i < batches; i++) {
       const batchStartNum = startNum + (i * casesPerBatch);
       const batchStartId = `${idPrefix}${String(batchStartNum).padStart(idLength, '0')}`;
 
       try {
         console.log(`Generating Batch ${i + 1}/${batches}...`);
-        const batchCases = await generateBatch(model, userStory, batchStartId, casesPerBatch, screenshots, i);
+        const batchCases = await generateBatch(genAI, userStory, batchStartId, casesPerBatch, screenshots, i);
         allTestCases.push(...batchCases);
 
-        // Add safety delay between batches to respect 15 RPM limit (1 req / 4s)
-        // If generation takes 2s + 4s wait = 6s total per req = 10 RPM (Safe)
+        // Add safety delay (4s still good practice even with high quota models to be safe)
         if (i < batches - 1) {
-          console.log("Throttling for rate limit safety...");
           await new Promise(resolve => setTimeout(resolve, 4000));
         }
 
@@ -216,15 +242,8 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
     if (!API_KEY) throw new Error("Missing API Key");
 
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: {
-        temperature: 0.8,
-        maxOutputTokens: 8192,
-        responseMimeType: "application/json",
-      }
-    });
 
+    // Also use fallback for refinement
     const prompt = `
       You are "Compass AI".
       User Input: "${userInstructions}"
@@ -236,9 +255,11 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
       Return JSON: { "message": "string", "suggestedFilename": "string", "testCases": [] }
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const text = await generateWithFallback(genAI, [prompt], {
+      temperature: 0.8,
+      maxOutputTokens: 8192,
+      responseMimeType: "application/json",
+    });
 
     let jsonString = text.replace(/```json\n?|```/g, "");
     const firstBrace = jsonString.indexOf('{');
