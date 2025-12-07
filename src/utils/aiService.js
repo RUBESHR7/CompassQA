@@ -30,7 +30,7 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
     console.log("Using client-side generation");
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 8192,
@@ -125,7 +125,7 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
 
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       generationConfig: {
         temperature: 0.8,
         maxOutputTokens: 8192,
