@@ -1,310 +1,159 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Helper to convert File to Base64
-const fileToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      const base64String = reader.result.split(',')[1];
-      resolve({
-        data: base64String,
-        mimeType: file.type
-      });
-    };
-    reader.onerror = (error) => reject(error);
-  });
-};
+export const generateTestCases = async (userStory, testCaseId, screenshots) => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-// Check if we're in development mode
-const isDevelopment = import.meta.env.DEV;
-
-// FORCE USAGE of the new validated key (Hardcoded to bypass stale GitHub Secrets)
-const HARDCODED_KEY = "AIzaSyAHTleIpwchp-ijy9zFStXZpzzGM0_VWw0";
-const ENV_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const API_KEY = HARDCODED_KEY || ENV_KEY;
-
-// Model Priority List
-const MODEL_CANDIDATES = [
-  "gemini-2.5-flash",        // Primary: Verified Working
-  "gemini-2.0-flash-exp",    // Experimental Backup
-  "gemini-1.5-flash",        // Legacy 
-  "gemini-1.5-flash-latest",
-  "gemini-1.5-pro",
-];
-
-// Helper to attempt repairing truncated JSON
-function repairJson(jsonString) {
-  try {
-    return JSON.parse(jsonString);
-  } catch (e) {
-    let repaired = jsonString.trim();
-    if (repaired.endsWith(',')) {
-      repaired = repaired.slice(0, -1);
-    }
-
-    // Count brackets
-    const openBraces = (repaired.match(/\{/g) || []).length;
-    const closeBraces = (repaired.match(/\}/g) || []).length;
-    const openBrackets = (repaired.match(/\[/g) || []).length;
-    const closeBrackets = (repaired.match(/\]/g) || []).length;
-
-    // Add missing closures
-    for (let i = 0; i < (openBraces - closeBraces); i++) repaired += "}";
-    for (let i = 0; i < (openBrackets - closeBrackets); i++) repaired += "]";
-
-    try {
-      return JSON.parse(repaired);
-    } catch (e2) {
-      // Last ditch: try finding the last valid closing sequence for array
-      const lastTestCaseEnd = repaired.lastIndexOf('}');
-      if (lastTestCaseEnd !== -1) {
-        let truncated = repaired.substring(0, lastTestCaseEnd + 1);
-        // Ensure we close the array and root object if needed
-        // Check if we are inside the 'testCases' array
-        if ((openBrackets - closeBrackets) > 0) truncated += "]";
-        if ((openBraces - closeBraces) > 1) truncated += "}"; // One for object inside array, one for root
-        else if ((openBraces - closeBraces) > 0) truncated += "}";
-
-        try { return JSON.parse(truncated); } catch (e3) { return null; }
-      }
-      return null;
-    }
+  if (!apiKey) {
+    throw new Error("API Key is required");
   }
-}
 
-// Helper to try generation with fallback models
-async function generateWithFallback(genAI, parts, config) {
-  let lastError = null;
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-  for (const modelName of MODEL_CANDIDATES) {
-    try {
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        generationConfig: config
-      });
-
-      const result = await model.generateContent(parts);
-      const response = await result.response;
-      return response.text();
-
-    } catch (error) {
-      console.warn(`Model ${modelName} failed: ${error.message}`);
-      lastError = error;
-    }
-  }
-  throw new Error(`All AI models failed. Please check your API Key or Quota. Last Error: ${lastError?.message}`);
-}
-
-// Internal function to generate a small batch of test cases
-const generateBatch = async (genAI, userStory, startId, count, screenshots, batchIndex) => {
-  const prompt = `Generate exactly ${count} detailed test cases for this user story: "${userStory}"
-
-  Start test case IDs with "${startId}" and increment sequentially (e.g., if start is TC_001, generate TC_001 to TC_020).
-
-  Return ONLY valid JSON. Structure:
-  {
-    "testCases": [
+  let prompt = `
+    You are an expert QA Automation Engineer. 
+    Analyze the following User Story and generate a comprehensive set of test cases covering all scenarios (positive, negative, edge cases).
+    Do not limit the number of test cases; generate as many as necessary to fully cover the user story.
+    
+    User Story:
+    "${userStory}"
+    
+    Output Format:
+    Provide a JSON object with two fields:
+    1. "suggestedFilename": "A concise, professional filename based on the User Story (e.g., 'Login_Feature_TestCases.xlsx')"
+    2. "testCases": A JSON array of objects with the following structure:
+    [
       {
-        "id": "${startId}",
-        "summary": "brief summary",
-        "description": "detailed description including all input data",
-        "preConditions": "prerequisites",
+        "id": "TC_XXX",
+        "summary": "Concise summary of the test case",
+        "description": "Detailed description including the purpose",
+        "preConditions": "Prerequisites required",
         "steps": [
           {
             "stepNumber": 1,
-            "description": "action",
-            "inputData": "",
-            "expectedOutcome": "expected result"
+            "description": "Detailed action to perform (include all data requirements here)",
+            "inputData": "", 
+            "expectedOutcome": "Expected result of the step"
           }
         ],
         "label": "Functional/UI/Security/Performance",
         "priority": "High/Medium/Low",
         "status": "Draft",
-        "executionMinutes": "5",
-        "caseFolder": "module name",
+        "executionMinutes": "Estimated time in minutes",
+        "caseFolder": "Module/Feature Name",
         "testCategory": "Regression/Smoke/Sanity"
       }
     ]
-  }
 
-  Requirements:
-  - Cover positive, negative, edge cases, and security scenarios.
-  - 5-7 steps per test case.
-  - inputData must be empty string "".
-  - Include all data in description field.`;
+    Constraints:
+    - The output must be valid JSON only. Do not include markdown code blocks.
+    - "inputData" field MUST BE EMPTY string "". All specific data (e.g., "Enter 'user@example.com'") must be included in the "description" field.
+    - Ensure test cases cover positive, negative, and edge cases.
+    - Test steps should be detailed (5-10 steps per case).
+    - Use the provided User Story to derive realistic input data and expected outcomes.
+  `;
 
-  const parts = [prompt];
-
-  if (screenshots && screenshots.length > 0) {
-    parts.push("\n\nRefer to the attached screenshots for UI context:");
-    for (const file of screenshots) {
-      const base64Data = await fileToGenerativePart(file);
-      parts.push(base64Data);
-    }
-  }
-
-  // Retry logic for this specific batch
-  let retries = 1;
-  let delay = 2000;
-
-  while (retries >= 0) {
-    try {
-      const text = await generateWithFallback(genAI, parts, {
-        temperature: 0.7,
-        maxOutputTokens: 8192,
-        responseMimeType: "application/json",
-      });
-
-      let jsonString = text.replace(/```json\n?|```/g, '');
-      const firstBrace = jsonString.indexOf('{');
-      const firstBracket = jsonString.indexOf('[');
-      if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
-        jsonString = jsonString.substring(firstBrace);
-      } else if (firstBracket !== -1) {
-        jsonString = jsonString.substring(firstBracket);
-      }
-
-      // Try basic parse first, then repair
-      let parsed = repairJson(jsonString);
-
-      if (!parsed) {
-        // Fallback: If repair fails, try one more time or just fail
-        throw new Error("JSON structure could not be repaired");
-      }
-
-      let cases = [];
-      if (Array.isArray(parsed)) {
-        cases = parsed;
-      } else if (parsed.testCases && Array.isArray(parsed.testCases)) {
-        cases = parsed.testCases;
-      } else if (parsed.test_cases && Array.isArray(parsed.test_cases)) {
-        cases = parsed.test_cases;
-      }
-
-      return cases.filter(c => c && typeof c === 'object');
-
-    } catch (error) {
-      console.warn(`Batch ${batchIndex} attempt failed:`, error.message);
-      if (retries === 0) {
-        throw error;
-      }
-      await new Promise(r => setTimeout(r, delay));
-      delay *= 2;
-      retries--;
-    }
-  }
-  throw new Error(`Batch ${batchIndex} failed after retries`);
-};
-
-export const generateTestCases = async (userStory, testCaseId, screenshots) => {
   try {
-    if (!API_KEY) throw new Error("Missing API Key");
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-    const genAI = new GoogleGenerativeAI(API_KEY);
+    // Robust JSON extraction
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No JSON found in response");
+    }
+    const jsonString = jsonMatch[0];
 
-    console.log("Starting batch generation...");
+    const parsedData = JSON.parse(jsonString);
 
-    // SAFE MODE: 1 Batch of 15 Test Cases
-    const batches = 1;
-    const casesPerBatch = 15;
-    const allTestCases = [];
-    const errors = [];
+    // Handle both old (array) and new (object) formats for backward compatibility if needed, 
+    // but strictly we expect object now.
+    const testCasesArray = Array.isArray(parsedData) ? parsedData : parsedData.testCases;
+    const filename = parsedData.suggestedFilename || "TestCases.xlsx";
 
-    // Parse ID
-    const idPrefix = testCaseId.match(/^[a-zA-Z_-]+/)?.[0] || "TC_";
-    const idNumStr = testCaseId.match(/\d+$/)?.[0] || "1";
-    const startNum = parseInt(idNumStr, 10);
-    const idLength = idNumStr.length;
-
-    // Execute Generation
-    for (let i = 0; i < batches; i++) {
-      const batchStartNum = startNum + (i * casesPerBatch);
-      const batchStartId = `${idPrefix}${String(batchStartNum).padStart(idLength, '0')}`;
-
-      try {
-        console.log(`Generating Batch ${i + 1}/${batches}...`);
-        const batchCases = await generateBatch(genAI, userStory, batchStartId, casesPerBatch, screenshots, i);
-        allTestCases.push(...batchCases);
-      } catch (err) {
-        console.error(`Batch ${i + 1} failed:`, err);
-        errors.push(`Batch ${i + 1}: ${err.message}`);
+    // Post-process to ensure IDs match the requested format
+    const processedCases = testCasesArray.map((tc, index) => {
+      let newId;
+      if (testCaseId) {
+        const match = testCaseId.match(/^(.*?)(\d+)$/);
+        if (match) {
+          const prefix = match[1];
+          const numStr = match[2];
+          const startNum = parseInt(numStr, 10);
+          const width = numStr.length;
+          const nextNum = startNum + index;
+          newId = `${prefix}${String(nextNum).padStart(width, '0')}`;
+        } else {
+          // If testCaseId has no number at the end, append _001, _002 etc.
+          newId = `${testCaseId}_${String(index + 1).padStart(3, '0')}`;
+        }
+      } else {
+        newId = `TC_${String(index + 1).padStart(3, '0')}`;
       }
-    }
 
-    if (allTestCases.length === 0) {
-      throw new Error(`Failed to generate any test cases. Errors: ${errors.join("; ")}`);
-    }
-
-    // Sort by ID
-    allTestCases.sort((a, b) => {
-      if (!a.id || !b.id) return 0;
-      return a.id.localeCompare(b.id, undefined, { numeric: true });
+      return {
+        ...tc,
+        id: newId
+      };
     });
 
-    return {
-      suggestedFilename: "Generated_Test_Cases.xlsx",
-      testCases: allTestCases
-    };
+    return { testCases: processedCases, suggestedFilename: filename };
 
   } catch (error) {
-    console.error("Error generating test cases:", error);
-    if (error.message.includes("API key not valid")) {
-      throw new Error("Invalid API Key. Please check your configuration.");
-    }
-    throw error;
+    console.error("Gemini API Error:", error);
+    throw new Error(error.message || "Failed to generate test cases.");
   }
 };
 
 export const refineTestCases = async (currentTestCases, userInstructions) => {
-  try {
-    if (!API_KEY) throw new Error("Missing API Key");
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-    const genAI = new GoogleGenerativeAI(API_KEY);
+  if (!apiKey) throw new Error("API Key is required");
 
-    const prompt = `
-      You are "Compass AI".
-      User Input: "${userInstructions}"
-      
-      Current Test Cases (JSON):
-      ${JSON.stringify(currentTestCases)}
-      
-      Update the test cases based on the instructions.
-      Return JSON: { "message": "string", "suggestedFilename": "string", "testCases": [] }
-    `;
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const text = await generateWithFallback(genAI, [prompt], {
-      temperature: 0.8,
-      maxOutputTokens: 8192,
-      responseMimeType: "application/json",
-    });
+  const prompt = `
+    You are an expert QA Automation Engineer.
+    
+    Current Test Cases (JSON):
+    ${JSON.stringify(currentTestCases)}
 
-    let jsonString = text.replace(/```json\n?|```/g, "");
-    const firstBrace = jsonString.indexOf('{');
-    const lastBrace = jsonString.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1) {
-      jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+    User Instruction:
+    "${userInstructions}"
+
+    Task:
+    1. Analyze the current test cases and the user's instruction.
+    2. Modify, add, or remove test cases as requested.
+    3. If adding new cases, ensure they follow the same structure and numbering.
+    4. "inputData" field MUST REMAIN EMPTY "". Put details in "description".
+    5. Return the COMPLETELY UPDATED JSON object containing the "testCases" array and a potentially updated "suggestedFilename".
+
+    Output Format:
+    {
+      "suggestedFilename": "Updated filename if context changed",
+      "testCases": [ ... ]
     }
+    
+    Constraint: Return ONLY valid JSON. No markdown.
+  `;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    // Robust JSON extraction
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No JSON found in response");
+    }
+    const jsonString = jsonMatch[0];
 
     return JSON.parse(jsonString);
   } catch (error) {
-    console.error("Refinement error:", error);
-    throw error;
+    console.error("Refinement Error:", error);
+    throw new Error("Failed to refine test cases: " + error.message);
   }
 };
-
-async function fileToGenerativePart(file) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64Data = reader.result.split(',')[1];
-      resolve({
-        inlineData: {
-          data: base64Data,
-          mimeType: file.type
-        },
-      });
-    };
-    reader.readAsDataURL(file);
-  });
-}
