@@ -1,7 +1,7 @@
 // Quick test of the working API key
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const API_KEY = "AIzaSyByNyfpPL_LwsKDJT7H1HCtFplmwJna2HI";
+const API_KEY = "AIzaSyCM08fMV2DfStVTTLAdluxyb6T0P51e_f4";
 
 async function quickTest() {
     try {

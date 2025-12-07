@@ -30,18 +30,18 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
     console.log("Using client-side generation");
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 8192,
       }
     });
 
-    let prompt = `Generate test cases for this user story: "${userStory}"
+    let prompt = `Generate a comprehensive and high-quantity set of test cases (aim for 50-100 if the story is complex enough) for this user story: "${userStory}"
 
-Start test case IDs with "${testCaseId}" and increment (${testCaseId}, ${testCaseId.replace(/\d+$/, m => String(Number(m) + 1))}, etc.).
+Start test case IDs with "${testCaseId}" and increment sequentially.
 
-Return ONLY valid JSON (no markdown):
+Return ONLY valid JSON (no markdown). The response must be a valid JSON object structure:
 {
   "suggestedFilename": "descriptive_filename.xlsx",
   "testCases": [
@@ -69,10 +69,10 @@ Return ONLY valid JSON (no markdown):
 }
 
 Requirements:
-- Cover positive, negative, edge cases
-- 5-7 steps per test case
-- inputData must be empty string ""
-- Include all data in description field`;
+- Cover positive, negative, edge cases, and security scenarios.
+- 5-7 steps per test case.
+- inputData must be empty string "".
+- Include all data in description field.`;
 
     const parts = [prompt];
 
@@ -88,17 +88,22 @@ Requirements:
     const response = await result.response;
     const text = response.text();
 
+    console.log("Raw AI response length:", text.length);
+
     // Robust JSON extraction
     let jsonString = text;
-    const firstBrace = text.indexOf('{');
-    const lastBrace = text.lastIndexOf('}');
+    // Remove markdown code blocks if present
+    jsonString = jsonString.replace(/```json\n?|```/g, '');
+
+    // Find the first '{' and last '}'
+    const firstBrace = jsonString.indexOf('{');
+    const lastBrace = jsonString.lastIndexOf('}');
 
     if (firstBrace !== -1 && lastBrace !== -1) {
-      jsonString = text.substring(firstBrace, lastBrace + 1);
+      jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+    } else {
+      throw new Error("Invalid JSON structure in AI response");
     }
-
-    // Clean up any potential markdown artifacts inside the extracted block if needed
-    // usually substring is enough, but just in case
 
     return JSON.parse(jsonString);
 
@@ -120,10 +125,10 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
 
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",
       generationConfig: {
         temperature: 0.8,
-        maxOutputTokens: 2048,
+        maxOutputTokens: 8192,
       }
     });
 
@@ -161,7 +166,13 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
     const response = await result.response;
     const text = response.text();
 
-    const jsonString = text.replace(/```json\n|\n```/g, "").replace(/```/g, "");
+    let jsonString = text.replace(/```json\n?|```/g, "");
+    const firstBrace = jsonString.indexOf('{');
+    const lastBrace = jsonString.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+    }
+
     return JSON.parse(jsonString);
   } catch (error) {
     console.error("Error refining test cases:", error);

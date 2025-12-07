@@ -1,5 +1,5 @@
 // List available models
-const API_KEY = "AIzaSyByNyfpPL_LwsKDJT7H1HCtFplmwJna2HI";
+const API_KEY = "AIzaSyCM08fMV2DfStVTTLAdluxyb6T0P51e_f4";
 
 async function listModels() {
     try {
