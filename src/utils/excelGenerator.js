@@ -95,11 +95,25 @@ export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
 
     // Generate buffer and download
     const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    // Ensure filename has .xlsx extension
+    const finalFilename = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
+
+    const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
     const url = window.URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
+    anchor.download = finalFilename;
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
     anchor.click();
-    window.URL.revokeObjectURL(url);
+    document.body.removeChild(anchor);
+
+    // Clean up
+    setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+    }, 100);
 };
