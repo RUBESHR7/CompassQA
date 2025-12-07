@@ -29,8 +29,9 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
 
     console.log("Using client-side generation");
     const genAI = new GoogleGenerativeAI(API_KEY);
+    // Switch to gemini-2.5-flash as it is at the top of the available list and may have better quotas
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 8192,
@@ -84,28 +85,52 @@ Requirements:
       }
     }
 
-    const result = await model.generateContent(parts);
-    const response = await result.response;
-    const text = response.text();
+    // Implementing Retry with Exponential Backoff
+    let retries = 3;
+    let delay = 3000; // Start with 3 seconds
 
-    console.log("Raw AI response length:", text.length);
+    while (retries >= 0) {
+      try {
+        const result = await model.generateContent(parts);
+        const response = await result.response;
+        const text = response.text();
 
-    // Robust JSON extraction
-    let jsonString = text;
-    // Remove markdown code blocks if present
-    jsonString = jsonString.replace(/```json\n?|```/g, '');
+        console.log("Raw AI response length:", text.length);
 
-    // Find the first '{' and last '}'
-    const firstBrace = jsonString.indexOf('{');
-    const lastBrace = jsonString.lastIndexOf('}');
+        // Robust JSON extraction
+        let jsonString = text;
+        // Remove markdown code blocks if present
+        jsonString = jsonString.replace(/```json\n?|```/g, '');
 
-    if (firstBrace !== -1 && lastBrace !== -1) {
-      jsonString = jsonString.substring(firstBrace, lastBrace + 1);
-    } else {
-      throw new Error("Invalid JSON structure in AI response");
+        // Find the first '{' and last '}'
+        const firstBrace = jsonString.indexOf('{');
+        const lastBrace = jsonString.lastIndexOf('}');
+
+        if (firstBrace !== -1 && lastBrace !== -1) {
+          jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+        } else {
+          throw new Error("Invalid JSON structure in AI response");
+        }
+
+        return JSON.parse(jsonString);
+
+      } catch (error) {
+        // Handle 503 (Service Unavailable) and 429 (Too Many Requests)
+        if (error.status === 503 || error.status === 429 || error.message.includes("429") || error.message.includes("503")) {
+          if (retries === 0) {
+            console.error("Max retries reached.");
+            throw new Error(`Service busy or rate limit reached. Please wait a minute and try again. (${error.message})`);
+          }
+          console.warn(`Attempt failed (Rate Limit/Service Busy). Retrying in ${delay}ms... (${retries} attempts left)`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Double delay for next retry
+          retries--;
+        } else {
+          // If it's another error (e.g., API key, invalid request), throw immediately
+          throw error;
+        }
+      }
     }
-
-    return JSON.parse(jsonString);
 
   } catch (error) {
     console.error("Error generating test cases:", error);
@@ -125,7 +150,7 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
 
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash", // Use same model for consistency
       generationConfig: {
         temperature: 0.8,
         maxOutputTokens: 8192,
