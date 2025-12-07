@@ -20,7 +20,7 @@ const fileToBase64 = (file) => {
 const isDevelopment = import.meta.env.DEV;
 
 // Fallback key if .env is missing/blocked
-const FALLBACK_KEY = "AIzaSyCM08fMV2DfStVTTLAdluxyb6T0P51e_f4";
+const FALLBACK_KEY = "AIzaSyDCIvnH-ruTZxuluas_DVhDyFBZUHVhek4";
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || FALLBACK_KEY;
 
 // Model Priority List
