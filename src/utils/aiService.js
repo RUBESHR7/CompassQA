@@ -33,7 +33,7 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
       model: "gemini-2.5-flash",
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 8192,
       }
     });
 
@@ -88,7 +88,18 @@ Requirements:
     const response = await result.response;
     const text = response.text();
 
-    const jsonString = text.replace(/```json\n|\n```/g, "").replace(/```/g, "");
+    // Robust JSON extraction
+    let jsonString = text;
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      jsonString = text.substring(firstBrace, lastBrace + 1);
+    }
+
+    // Clean up any potential markdown artifacts inside the extracted block if needed
+    // usually substring is enough, but just in case
+
     return JSON.parse(jsonString);
 
   } catch (error) {
