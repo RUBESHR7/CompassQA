@@ -83,10 +83,15 @@ function App() {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (testCases) {
-      exportToExcel(testCases, filename);
-      toast.success("Export started!");
+      try {
+        await exportToExcel(testCases, filename);
+        toast.success("Excel file downloaded successfully!");
+      } catch (error) {
+        console.error("Export error:", error);
+        toast.error(`Export failed: ${error.message}`);
+      }
     }
   };
 
