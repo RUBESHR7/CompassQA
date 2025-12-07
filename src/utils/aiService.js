@@ -194,26 +194,29 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
     const startNum = parseInt(idNumStr, 10);
     const idLength = idNumStr.length;
 
-    // Execute SEQUENTIALLY
+    // Execute IN PARALLEL for speed (Restoring "Old" fast behavior)
+    // 5 Batches * 1 request = 5 requests. This is under the 15 RPM limit of free tier.
+
+    // Create array of promises
+    const batchPromises = [];
     for (let i = 0; i < batches; i++) {
       const batchStartNum = startNum + (i * casesPerBatch);
       const batchStartId = `${idPrefix}${String(batchStartNum).padStart(idLength, '0')}`;
 
-      try {
-        console.log(`Generating Batch ${i + 1}/${batches}...`);
-        const batchCases = await generateBatch(genAI, userStory, batchStartId, casesPerBatch, screenshots, i);
-        allTestCases.push(...batchCases);
-
-        // Safety throttle betwen batches
-        if (i < batches - 1) {
-          await new Promise(resolve => setTimeout(resolve, 4000));
-        }
-
-      } catch (err) {
-        console.error(`Batch ${i + 1} failed:`, err);
-        errors.push(`Batch ${i + 1}: ${err.message}`);
-      }
+      console.log(`Starting Batch ${i + 1}/${batches} (Parallel)...`);
+      batchPromises.push(
+        generateBatch(genAI, userStory, batchStartId, casesPerBatch, screenshots, i)
+          .catch(err => {
+            console.error(`Batch ${i + 1} failed:`, err);
+            errors.push(`Batch ${i + 1}: ${err.message}`);
+            return []; // Return empty array on failure so others continue
+          })
+      );
     }
+
+    // Wait for all to finish
+    const results = await Promise.all(batchPromises);
+    results.forEach(batchCases => allTestCases.push(...batchCases));
 
     if (allTestCases.length === 0) {
       throw new Error(`Failed to generate any test cases. Errors: ${errors.join("; ")}`);
