@@ -11,10 +11,10 @@ const ResultsView = ({ testCases, filename, onExport, onReset, onUpdate }) => {
   ]);
   const chatEndRef = useRef(null);
 
-  // Scroll to top whenever test cases change (after generation)
+  // Scroll to top only once when component mounts
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [testCases]);
+    window.scrollTo(0, 0);
+  }, []);
 
   // Scroll chat to bottom when messages change
   useEffect(() => {

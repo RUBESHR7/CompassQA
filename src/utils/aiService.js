@@ -1,55 +1,14 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Chat session manager for conversational memory
-class ChatSessionManager {
-  constructor() {
-    this.history = [];
-    this.model = null;
-  }
-
-  initialize(apiKey) {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    this.model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-  }
-
-  addToHistory(userMessage, modelResponse) {
-    this.history.push(
-      { role: "user", parts: [{ text: userMessage }] },
-      { role: "model", parts: [{ text: modelResponse }] }
-    );
-  }
-
-  getHistory() {
-    return this.history;
-  }
-
-  clearHistory() {
-    this.history = [];
-  }
-
-  async sendMessage(prompt) {
-    if (!this.model) {
-      throw new Error("Chat session not initialized");
-    }
-
-    const chat = this.model.startChat({ history: this.history });
-    const result = await chat.sendMessage(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    // Add to history
-    this.addToHistory(prompt, text);
-
-    return text;
-  }
-}
-
-export const generateTestCases = async (userStory, testCaseId, screenshots, chatSession = null) => {
+export const generateTestCases = async (userStory, testCaseId, screenshots) => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
   if (!apiKey) {
     throw new Error("API Key is required");
   }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   let prompt = `
     You are an expert QA Automation Engineer. 
@@ -95,19 +54,9 @@ export const generateTestCases = async (userStory, testCaseId, screenshots, chat
   `;
 
   try {
-    let text;
-
-    if (chatSession) {
-      // Use chat session for conversational memory
-      text = await chatSession.sendMessage(prompt);
-    } else {
-      // Stateless mode (backward compatibility)
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      text = response.text();
-    }
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
     // Robust JSON extraction
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -208,6 +157,3 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
     throw new Error("Failed to refine test cases: " + error.message);
   }
 };
-
-// Export the ChatSessionManager class
-export { ChatSessionManager };

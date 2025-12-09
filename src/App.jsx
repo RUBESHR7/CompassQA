@@ -3,7 +3,7 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import Layout from './components/Layout';
 import BackgroundWaves from './components/BackgroundWaves';
-import { generateTestCases, ChatSessionManager } from './utils/aiService';
+import { generateTestCases } from './utils/aiService';
 import { exportToExcel } from './utils/excelGenerator';
 
 // Lazy load components
@@ -18,9 +18,6 @@ function App() {
   const [filename, setFilename] = useState("TestCases.xlsx");
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
-  const [memoryEnabled, setMemoryEnabled] = useState(true); // Default to ON
-  const [chatSession, setChatSession] = useState(null);
-  const [conversationHistory, setConversationHistory] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -45,22 +42,6 @@ function App() {
         console.error("Failed to load history", e);
       }
     }
-
-    // Load memory settings
-    const savedMemoryEnabled = localStorage.getItem('compass_qa_memory_enabled');
-    if (savedMemoryEnabled !== null) {
-      setMemoryEnabled(savedMemoryEnabled === 'true');
-    }
-
-    // Load conversation history
-    const savedConversation = localStorage.getItem('compass_qa_conversation');
-    if (savedConversation) {
-      try {
-        setConversationHistory(JSON.parse(savedConversation));
-      } catch (e) {
-        console.error("Failed to load conversation history", e);
-      }
-    }
   }, []);
 
   // Save to localStorage on change
@@ -75,47 +56,12 @@ function App() {
     localStorage.setItem('compass_qa_history', JSON.stringify(history));
   }, [history]);
 
-  // Save memory settings to localStorage
-  useEffect(() => {
-    localStorage.setItem('compass_qa_memory_enabled', memoryEnabled.toString());
-  }, [memoryEnabled]);
-
-  // Save conversation history to localStorage
-  useEffect(() => {
-    localStorage.setItem('compass_qa_conversation', JSON.stringify(conversationHistory));
-  }, [conversationHistory]);
-
-  // Initialize chat session when memory is enabled
-  useEffect(() => {
-    if (memoryEnabled) {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (apiKey) {
-        const session = new ChatSessionManager();
-        session.initialize(apiKey);
-
-        // Restore conversation history if exists
-        if (conversationHistory.length > 0) {
-          session.history = conversationHistory;
-        }
-
-        setChatSession(session);
-      }
-    } else {
-      setChatSession(null);
-    }
-  }, [memoryEnabled]);
-
   const handleGenerate = async (data) => {
     setLoading(true);
     try {
-      const result = await generateTestCases(data.userStory, data.testCaseId, data.screenshots, chatSession);
+      const result = await generateTestCases(data.userStory, data.testCaseId, data.screenshots);
       setTestCases(result.testCases);
       setFilename(result.suggestedFilename);
-
-      // Update conversation history if memory is enabled
-      if (chatSession) {
-        setConversationHistory(chatSession.getHistory());
-      }
 
       // Add to history
       const newHistoryItem = {
@@ -177,19 +123,6 @@ function App() {
 
   const handleHistoryClick = () => {
     navigate('/history');
-  };
-
-  const handleToggleMemory = () => {
-    setMemoryEnabled(prev => !prev);
-    toast.info(memoryEnabled ? "Conversational memory disabled" : "Conversational memory enabled");
-  };
-
-  const handleClearMemory = () => {
-    if (chatSession) {
-      chatSession.clearHistory();
-      setConversationHistory([]);
-      toast.success("Conversation memory cleared");
-    }
   };
 
   const LoadingSpinner = () => (
@@ -255,13 +188,7 @@ function App() {
                   {loading ? (
                     <LoadingSpinner />
                   ) : (
-                    <InputForm
-                      onGenerate={handleGenerate}
-                      memoryEnabled={memoryEnabled}
-                      onToggleMemory={handleToggleMemory}
-                      onClearMemory={handleClearMemory}
-                      conversationCount={conversationHistory.length / 2}
-                    />
+                    <InputForm onGenerate={handleGenerate} />
                   )}
                 </>
               ) : (
