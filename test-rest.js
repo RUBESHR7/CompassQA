@@ -1,5 +1,5 @@
 // Test using v1beta REST API
-const API_KEY = "AIzaSyByNyfpPL_LwsKDJT7H1HCtFplmwJna2HI";
+const API_KEY = "AIzaSyDRRmfCYt23t_A978CIC7vSoJvvcSsiiyI";
 
 async function testRESTAPI() {
     try {
