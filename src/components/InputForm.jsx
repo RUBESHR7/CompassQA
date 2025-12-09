@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, Settings, X, ChevronDown, Eye, Maximize2 } from 'lucide-react';
+import { Upload, FileText, Settings, X, ChevronDown, Eye, Maximize2, Brain, Trash2 } from 'lucide-react';
 
-const InputForm = ({ onGenerate }) => {
+const InputForm = ({ onGenerate, memoryEnabled, onToggleMemory, onClearMemory, conversationCount }) => {
   const [userStory, setUserStory] = useState('');
   const [testCaseId, setTestCaseId] = useState('TC_001');
   const [screenshots, setScreenshots] = useState([]); // Array of { file: File, url: string }
@@ -117,6 +117,52 @@ const InputForm = ({ onGenerate }) => {
               placeholder="TC_001"
               required
             />
+          </div>
+
+          {/* Memory Toggle Card */}
+          <div className="bento-card memory-card glass-panel">
+            <div className="card-header">
+              <div className="icon-wrapper"><Brain size={20} /></div>
+              <h3>AI Memory</h3>
+            </div>
+
+            <div className="memory-controls">
+              <div className="memory-status">
+                <div className="status-indicator">
+                  <div className={`status-dot ${memoryEnabled ? 'active' : ''}`}></div>
+                  <span>{memoryEnabled ? 'Learning' : 'Stateless'}</span>
+                </div>
+                {memoryEnabled && conversationCount > 0 && (
+                  <span className="conversation-count">{conversationCount} interactions</span>
+                )}
+              </div>
+
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={memoryEnabled}
+                  onChange={onToggleMemory}
+                />
+                <span className="slider"></span>
+              </label>
+            </div>
+
+            {memoryEnabled && conversationCount > 0 && (
+              <button
+                type="button"
+                className="clear-memory-btn"
+                onClick={onClearMemory}
+              >
+                <Trash2 size={14} />
+                Clear Memory
+              </button>
+            )}
+
+            <p className="memory-description">
+              {memoryEnabled
+                ? "AI learns from previous user stories in this session"
+                : "Each generation is independent"}
+            </p>
           </div>
         </div>
 
@@ -444,6 +490,127 @@ const InputForm = ({ onGenerate }) => {
         .btn-generate:hover {
           transform: translateY(-2px);
           box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+        }
+
+        /* Memory Card Styles */
+        .memory-controls {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: var(--spacing-md);
+        }
+
+        .memory-status {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .status-indicator {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+        }
+
+        .status-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--text-muted);
+          transition: all var(--transition-fast);
+        }
+
+        .status-dot.active {
+          background: #10b981;
+          box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .conversation-count {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          padding-left: 16px;
+        }
+
+        .memory-description {
+          font-size: 0.8rem;
+          color: var(--text-muted);
+          margin: 0;
+          line-height: 1.4;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+          position: relative;
+          display: inline-block;
+          width: 48px;
+          height: 24px;
+          flex-shrink: 0;
+        }
+
+        .toggle-switch input {
+          opacity: 0;
+          width: 0;
+          height: 0;
+        }
+
+        .slider {
+          position: absolute;
+          cursor: pointer;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(255, 255, 255, 0.1);
+          transition: var(--transition-fast);
+          border-radius: 24px;
+          border: 1px solid var(--border-color);
+        }
+
+        .slider:before {
+          position: absolute;
+          content: "";
+          height: 16px;
+          width: 16px;
+          left: 3px;
+          bottom: 3px;
+          background-color: white;
+          transition: var(--transition-fast);
+          border-radius: 50%;
+        }
+
+        input:checked + .slider {
+          background-color: var(--accent-primary);
+          border-color: var(--accent-primary);
+        }
+
+        input:checked + .slider:before {
+          transform: translateX(24px);
+        }
+
+        .slider:hover {
+          border-color: var(--accent-primary);
+        }
+
+        /* Clear Memory Button */
+        .clear-memory-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 12px;
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          border-radius: var(--radius-md);
+          color: #ef4444;
+          font-size: 0.8rem;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .clear-memory-btn:hover {
+          background: rgba(239, 68, 68, 0.2);
+          border-color: #ef4444;
         }
 
         @media (max-width: 768px) {
