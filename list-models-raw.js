@@ -1,4 +1,4 @@
-const apiKey = "AIzaSyDRRmfCYt23t_A978CIC7vSoJvvcSsiiyI";
+const apiKey = "AIzaSyAom0ZV28TSNrfkigNE4Y3SLXx4QrB6QAA";
 const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
 
 async function getModels() {

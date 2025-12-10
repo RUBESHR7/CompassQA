@@ -1,4 +1,4 @@
-const API_KEY = "AIzaSyDRRmfCYt23t_A978CIC7vSoJvvcSsiiyI";
+const API_KEY = "AIzaSyAom0ZV28TSNrfkigNE4Y3SLXx4QrB6QAA";
 
 async function testV1() {
     console.log("🔍 Testing 'v1' API endpoint directly...");

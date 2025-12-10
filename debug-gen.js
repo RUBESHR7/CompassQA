@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const API_KEY = "AIzaSyDRRmfCYt23t_A978CIC7vSoJvvcSsiiyI"; // Hardcoded for debugging
+const API_KEY = "AIzaSyAom0ZV28TSNrfkigNE4Y3SLXx4QrB6QAA"; // Hardcoded for debugging
 
 async function testGeneration() {
   console.log("Initializing Gemini 2.5 Flash...");
