@@ -13,12 +13,6 @@ const LandingPage = lazy(() => import('./components/LandingPage'));
 const Documentation = lazy(() => import('./components/Documentation'));
 const History = lazy(() => import('./components/History'));
 
-const Dashboard = lazy(() => import('./components/Dashboard'));
-const FeatureGenerator = lazy(() => import('./components/FeatureGenerator'));
-const JsonAnalyzer = lazy(() => import('./components/JsonAnalyzer'));
-const StepDefGenerator = lazy(() => import('./components/StepDefGenerator'));
-const ExcelSplitter = lazy(() => import('./components/ExcelSplitter'));
-
 function App() {
   const [testCases, setTestCases] = useState(null);
   const [filename, setFilename] = useState("TestCases.xlsx");
@@ -83,11 +77,7 @@ function App() {
       toast.success("Test cases generated successfully!");
     } catch (error) {
       console.error("Error generating test cases:", error);
-      if (error.message.includes("429") || error.message.includes("quota")) {
-        toast.error("Quota Limit Reached. Please wait ~1 minute before trying again.", { duration: 5000 });
-      } else {
-        toast.error(`Failed to generate test cases: ${error.message}`);
-      }
+      toast.error(`Failed to generate test cases: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -161,38 +151,7 @@ function App() {
       <BackgroundWaves />
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
-          <Route path="/" element={<LandingPage onStart={() => navigate('/dashboard')} />} />
-
-          <Route path="/dashboard" element={
-            <Layout onLogoClick={handleHomeClick} onDocsClick={handleDocsClick} onHistoryClick={handleHistoryClick}>
-              <Dashboard />
-            </Layout>
-          } />
-
-          <Route path="/feature-generator" element={
-            <Layout onLogoClick={handleHomeClick} onDocsClick={handleDocsClick} onHistoryClick={handleHistoryClick}>
-              <FeatureGenerator />
-            </Layout>
-          } />
-
-          <Route path="/json-analyzer" element={
-            <Layout onLogoClick={handleHomeClick} onDocsClick={handleDocsClick} onHistoryClick={handleHistoryClick}>
-              <JsonAnalyzer />
-            </Layout>
-          } />
-
-          <Route path="/step-def-generator" element={
-            <Layout onLogoClick={handleHomeClick} onDocsClick={handleDocsClick} onHistoryClick={handleHistoryClick}>
-              <StepDefGenerator />
-            </Layout>
-          } />
-
-          <Route path="/excel-splitter" element={
-            <Layout onLogoClick={handleHomeClick} onDocsClick={handleDocsClick} onHistoryClick={handleHistoryClick}>
-              <ExcelSplitter />
-            </Layout>
-          } />
-
+          <Route path="/" element={<LandingPage onStart={() => navigate('/app')} />} />
           <Route path="/docs" element={
             <Layout onLogoClick={handleHomeClick} onDocsClick={handleDocsClick} onHistoryClick={handleHistoryClick}>
               <Documentation />
@@ -219,24 +178,8 @@ function App() {
                       fontFamily: 'var(--font-display)',
                       letterSpacing: '-0.02em'
                     }}>
-                      <span className="text-gradient">Test Case Design</span>
+                      <span className="text-gradient">New Project</span>
                     </h1>
-                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
-                      <button
-                        onClick={() => navigate('/dashboard')}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid var(--border-color)',
-                          color: 'var(--text-secondary)',
-                          padding: '8px 16px',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          fontSize: '0.9rem'
-                        }}
-                      >
-                        ← Back to Dashboard
-                      </button>
-                    </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '1.125rem', maxWidth: '600px', margin: '0 auto' }}>
                       Configure your test generation settings below.
                     </p>

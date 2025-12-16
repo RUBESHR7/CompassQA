@@ -122,11 +122,11 @@ const Layout = ({ children, onLogoClick, onDocsClick, onHistoryClick }) => {
 
         .main-content {
           flex: 1;
-          padding: 2rem var(--spacing-md) var(--spacing-xl);
+          padding: var(--spacing-3xl) var(--spacing-md) var(--spacing-xl);
           max-width: 1200px;
           margin: 0 auto;
           width: 100%;
-          margin-top: 60px;
+          margin-top: 4rem;
         }
 
         .footer {
