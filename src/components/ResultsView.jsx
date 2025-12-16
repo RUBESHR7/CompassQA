@@ -120,6 +120,17 @@ const ResultsView = ({ testCases, filename, onExport, onReset, onUpdate }) => {
         </div>
       </div>
 
+      {/* Scroll to Top Button (Left Side) */}
+      <button
+        className="scroll-top-btn"
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        title="Scroll to Top"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 15l-6-6-6 6" />
+        </svg>
+      </button>
+
       {/* Chat Floating Button */}
       <button
         className={`chat-toggle-btn ${isChatOpen ? 'hidden' : ''}`}
@@ -331,6 +342,31 @@ const ResultsView = ({ testCases, filename, onExport, onReset, onUpdate }) => {
         .badge-low {
           background-color: rgba(16, 185, 129, 0.2);
           color: #10b981;
+        }
+
+        .scroll-top-btn {
+          position: fixed;
+          bottom: 30px;
+          left: 30px;
+          background: rgba(20, 20, 25, 0.8);
+          color: var(--text-secondary);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          padding: 12px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          z-index: 100;
+          backdrop-filter: blur(10px);
+        }
+
+        .scroll-top-btn:hover {
+          background: var(--accent-primary);
+          color: white;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
         }
 
         /* Chat UI */
@@ -576,7 +612,7 @@ const ResultsView = ({ testCases, filename, onExport, onReset, onUpdate }) => {
           }
         }
       `}</style>
-    </div>
+    </div >
   );
 };
 

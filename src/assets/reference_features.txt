@@ -1,0 +1,118 @@
+Feature: AMCC-84 Add or Edit Navigation Path
+
+  @regression @access-management @amcc-84 @amcc-tc-304
+  Scenario Outline: AMCC-TC-304 Verify "Add Navigation Path" button is enabled for users with both Read and Edit access
+    Given Login to the Cold Compass application with valid credentials
+    When Navigate to Administration -> Access Item Management Tab
+    Then Access Management Page should be displayed '<accessManagement>'
+    When Click on the Create Access Item button
+    Then Create new access item page should be displayed '<createNewAccessItem>'
+    When Enter '<inputData>' in the respective fields
+    Then Verify Active Toggle is enabled
+    When Click the Submit button
+    Then User should be redirected to the Access Item Details Page and Access Created Successfully message should be displayed '<successMsg>'
+    Then Verify that the Add Navigation Path button is enabled
+
+Examples:
+| accessManagement |createNewAccessItem|inputData|successMsg|
+| generic| generic| AMCC-TC-304| generic|
+
+  @regression @access-management @amcc-84 @amcc-tc-302
+  Scenario Outline: AMCC-TC-302 Verify user can delete a navigation path
+    Given Login to the Cold Compass application with valid credentials
+    When Navigate to Administration -> Access Item Management Tab
+    Then Access Management Page should be displayed '<accessManagement>'
+    When Click on the Create Access Item button
+    Then Create new access item page should be displayed '<createNewAccessItem>'
+    When Enter '<inputData>' in the respective fields
+    Then Verify Active Toggle is enabled
+    When Click the Submit button
+    Then User should be redirected to the Access Item Details Page and Access Created Successfully message should be displayed '<successMsg>'
+    When Click on the Add Navigation Path button and should be visible
+    Then Add Navigation Path flyer page should be displayed '<addNavigationPath>'
+    When Enter '<inputData>' in add navigation path
+    Then Verify that the Add Navigation Path button is enabled
+    And Click the save button
+    Then The Navigation path should be saved successfully
+    When Click on the Remove Navigation Path button
+    Then Verify that the navigation path is removed and the Add Navigation Path button is displayed
+
+Examples:
+| accessManagement| createNewAccessItem| inputData| successMsg| addNavigationPath|
+| generic| generic| AMCC-TC-302| generic| generic|  
+
+Feature: AMCC-86 Validate confirmation popups and behavior for various actions in Access Management
+
+  Background:
+    Given User is logged in as System Administrator and Read-only Administrator
+    When Navigate to Administration -> Access Item Management
+    Then Access Item home page should be displayed '<accessManagement>'
+    Examples:
+    | accessManagement |
+    | generic          |
+
+  @regression @access-management @amcc-86 @amcc-tc-212
+  Scenario: AMCC-TC-212 Validate confirmation popup in Assign New Role flyer when user has both Read-only Admin and System Admin access
+    When Click on the name hyperlink of any existing access item
+    Then Access Information page should open '<accessInformation>'
+    When Click on the Role Assignment tab
+    Then Role Assignment page should be displayed '<roleAssignment>'
+    When Click on Assign New Role
+    Then Assign New Role flyer should be populated '<assignNewRole>'
+    When Select '<accessClass>' from Access Class (Rights) dropdown
+    And Click on Cancel button
+    Then Confirmation popup should be displayed with message '<confirmationPopup>' and options '<options>'
+    Examples:
+    | accessInformation | roleAssignment | assignNewRole  | accessClass | confirmationPopup | options |
+    | generic |  generic | generic  | AMCC-TC-212 | AMCC-TC-212 | AMCC-TC-212 |
+
+Feature: AMCC-82 Create Access Information Tab
+
+  Background:
+    Given Login to the Cold Compass application with system administrator access
+    When Navigate to Administration -> Access Item Management page
+    Then Access Item home page should be displayed '<accessManagement>'
+  Examples:
+    | accessManagement |
+    | generic |
+
+  @regression @access-management @amcc-82 @amcc-tc-275
+  Scenario: AMCC-TC-275 Verification of breadcrumb navigation at the top of the Access Item Details Page
+    When Click on the Order Confirmation hyperlink below the Name column header '<accessName>'
+    Then Access Item Details page should be displayed '<accessItemDetails>'
+    And Validate that Home > Administration > Access Item Management > Access Item Details breadcrumb navigation is displayed '<breadcrumbs>'
+    When Click on the Access Management hyperlink in the breadcrumb '<accessManagement>'
+    Then User should be navigated to Access Management page '<accessManagement>'
+    When Click on the Home hyperlink in the breadcrumb '<home>'
+    Then User should be navigated to Home page '<homePage>'
+    Examples:
+      | accessItemDetails  | homePage | accessName | breadcrumbs | home |
+      | generic  | generic | AMCC-TC-275 | AMCC-TC-275 | generic |
+
+Feature: AMCC-54 Create Access Items Management Home Page - View & Manage
+
+  @regression @access-management @amcc-54 @amcc-tc-129
+  Scenario: AMCC-TC-129 Verification of access item home page with Role 1 system administrator access
+    Given Login to application with system administrator access
+    When Navigate to Administration -> access item management
+    Then Access item home page should be displayed '<accessManagement>'
+    And Confirm Create access item button is displayed
+    When Click on the name hyperlink
+    Then Access item details page should be displayed '<accessManagement>'
+    And Verify that the Edit Access Information button is displayed for Role 1 system admin
+  Examples:
+  | accessManagement |
+  | generic |
+
+  @regression @access-management @amcc-54 @amcc-tc-127
+  Scenario: AMCC-TC-127 Verification of breadcrumb navigation displayed in the home page
+    Given Login to application with system administrator access
+    When Navigate to Administration -> access item management
+    Then Access item home page should be displayed '<accessManagement>'
+    And Verify breadcrumb navigation is displayed as '<breadcrumb>'
+    And Confirm that breadcrumb levels in blue color are clickable '<field>'
+    When Click on a breadcrumb level '<field>'
+    Then User should be redirected to the corresponding page '<homePageTitle>'
+  Examples:
+  | accessManagement | breadcrumb | field | homePageTitle |
+  | generic | AMCC-TC-127 | generic | generic |
