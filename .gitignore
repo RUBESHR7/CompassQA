@@ -70,7 +70,6 @@ typings/
 .yarn-integrity
 
 # dotenv environment variables file
-.env
 .env.test
 .env.production
 
@@ -128,3 +127,6 @@ Desktop.ini
 .vscode/
 *.swp
 *.swo
+
+# Local Environment Variables
+.env
