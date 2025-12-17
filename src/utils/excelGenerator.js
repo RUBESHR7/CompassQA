@@ -6,21 +6,21 @@ export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Test Cases');
 
-    // Define columns
+    // Define columns based on User's requested format
+    // Issue Key | Summary | Step Summary | Expected Result | Folder | (Test Data)
     worksheet.columns = [
-        { header: 'Test Case ID', key: 'id', width: 15 },
+        { header: 'Issue Key', key: 'id', width: 15 },
         { header: 'Summary', key: 'summary', width: 30 },
-        { header: 'Test Case Description', key: 'description', width: 40 },
-        { header: 'Precondition', key: 'preConditions', width: 30 },
-        { header: 'Test Steps', key: 'stepNumber', width: 10 },
-        { header: 'Step Description', key: 'stepDescription', width: 40 },
-        { header: 'Step Input Data', key: 'stepInputData', width: 20 },
-        { header: 'Step Expected Outcome', key: 'stepExpectedOutcome', width: 30 },
+        { header: 'Step Summary', key: 'stepDescription', width: 40 },
+        { header: 'Test Data', key: 'stepInputData', width: 20 },
+        { header: 'Expected Result', key: 'stepExpectedOutcome', width: 30 },
+        { header: 'Folder', key: 'caseFolder', width: 30 },
+        // Keep other useful metadata at the end just in case
+        { header: 'Precondition', key: 'preConditions', width: 20 },
         { header: 'Label', key: 'label', width: 15 },
         { header: 'Priority', key: 'priority', width: 10 },
         { header: 'Status', key: 'status', width: 10 },
         { header: 'Execution Minutes', key: 'executionMinutes', width: 15 },
-        { header: 'Case Folder', key: 'caseFolder', width: 20 },
         { header: 'Test Category', key: 'testCategory', width: 20 }
     ];
 
@@ -29,46 +29,53 @@ export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
-    // Apply fill only to the header cells (columns 1 to 14)
-    for (let i = 1; i <= 14; i++) {
-        const cell = headerRow.getCell(i);
+    // Apply fill to the header cells
+    worksheet.columns.forEach((col, index) => {
+        const cell = headerRow.getCell(index + 1);
         cell.fill = {
             type: 'pattern',
             pattern: 'solid',
             fgColor: { argb: 'FF4472C4' } // Blue header
         };
-    }
+    });
 
     // Add data
+    // Add data
     testCases.forEach((tc) => {
-        const startRow = worksheet.lastRow ? worksheet.lastRow.number + 1 : 2;
-
-        tc.steps.forEach((step, index) => {
-            worksheet.addRow({
-                id: index === 0 ? tc.id : '',
-                summary: index === 0 ? tc.summary : '',
-                description: index === 0 ? tc.description : '',
-                preConditions: index === 0 ? tc.preConditions : '',
-                stepNumber: step.stepNumber,
-                stepDescription: step.description,
-                stepInputData: step.inputData,
-                stepExpectedOutcome: step.expectedOutcome,
-                label: index === 0 ? tc.label : '',
-                priority: index === 0 ? tc.priority : '',
-                status: index === 0 ? tc.status : '',
-                executionMinutes: index === 0 ? tc.executionMinutes : '',
-                caseFolder: index === 0 ? tc.caseFolder : '',
-                testCategory: index === 0 ? tc.testCategory : ''
+        // Populate ALL fields for EVERY row to support Filtering and CSV format
+        if (tc.steps && tc.steps.length > 0) {
+            tc.steps.forEach((step) => {
+                worksheet.addRow({
+                    id: tc.id,
+                    summary: tc.summary,
+                    stepDescription: step.description,
+                    stepInputData: step.inputData,
+                    stepExpectedOutcome: step.expectedOutcome,
+                    caseFolder: tc.caseFolder,
+                    preConditions: tc.preConditions,
+                    label: tc.label,
+                    priority: tc.priority,
+                    status: tc.status,
+                    executionMinutes: tc.executionMinutes,
+                    testCategory: tc.testCategory
+                });
             });
-        });
-
-        // Merge cells for the test case
-        if (tc.steps.length > 1) {
-            const endRow = startRow + tc.steps.length - 1;
-            const columnsToMerge = ['A', 'B', 'C', 'D', 'I', 'J', 'K', 'L', 'M', 'N'];
-
-            columnsToMerge.forEach(col => {
-                worksheet.mergeCells(`${col}${startRow}:${col}${endRow}`);
+            // Merging logic REMOVED to enable filtering
+        } else {
+            // Fallback if no steps
+            worksheet.addRow({
+                id: tc.id,
+                summary: tc.summary,
+                stepDescription: "No steps generated",
+                stepInputData: "",
+                stepExpectedOutcome: "",
+                caseFolder: tc.caseFolder,
+                preConditions: tc.preConditions,
+                label: tc.label,
+                priority: tc.priority,
+                status: tc.status,
+                executionMinutes: tc.executionMinutes,
+                testCategory: tc.testCategory
             });
         }
     });
@@ -96,7 +103,9 @@ export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
     // Generate buffer and download
     const buffer = await workbook.xlsx.writeBuffer();
 
-    // Ensure filename has .xlsx extension
+    // Default to xlsx, but user mentioned csv. ExcelJS writes xlsx buffer. 
+    // If we really wanted CSV, we'd use workbook.csv.writeBuffer(), but metadata/merge would be lost.
+    // For now, keep as xlsx as it supports the requested "image 2" structure best.
     const finalFilename = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
 
     const blob = new Blob([buffer], {
@@ -112,7 +121,6 @@ export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
     anchor.click();
     document.body.removeChild(anchor);
 
-    // Clean up
     setTimeout(() => {
         window.URL.revokeObjectURL(url);
     }, 100);

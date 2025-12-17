@@ -15,7 +15,7 @@ const Layout = ({ children, onLogoClick, onDocsClick, onHistoryClick }) => {
           </Link>
 
           <nav className="nav-links">
-            <Link to="/app" className="nav-link">New Project</Link>
+            <Link to="/dashboard" className="nav-link">Dashboard</Link>
             <Link to="/history" className="nav-link">History</Link>
             <Link to="/docs" className="nav-link">Documentation</Link>
           </nav>

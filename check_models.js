@@ -26,11 +26,24 @@ const genAI = new GoogleGenerativeAI(apiKey);
 async function listModels() {
     try {
         const candidates = [
-            "gemini-2.0-flash-exp",
-            "gemini-1.5-flash-002",
-            "gemini-1.5-pro-002",
-            "gemini-exp-1206"
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
+            "gemini-2.0-flash-exp"
         ];
+
+        console.log("Fetching Available Models List...");
+        try {
+            const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+            const data = await resp.json();
+            if (data.models) {
+                console.log("Available Models:", data.models.map(m => m.name));
+            } else {
+                console.log("ListModels Error:", data);
+            }
+        } catch (fetchErr) {
+            console.error("Failed to list models:", fetchErr);
+        }
 
         console.log("Testing Model Availability...");
 
@@ -43,6 +56,7 @@ async function listModels() {
             } catch (e) {
                 if (e.message.includes("404") || e.message.includes("not found")) {
                     console.log(`[FAILED]  ${modelName} - Not Found (404)`);
+                    console.log(`          Error Details: ${e.message}`);
                 } else if (e.message.includes("429")) {
                     console.log(`[SUCCESS] ${modelName} - Exists but Rate Limited (429)`);
                 } else {
@@ -55,5 +69,6 @@ async function listModels() {
         console.error("Fatal Error:", error);
     }
 }
+
 
 listModels();

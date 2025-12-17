@@ -85,7 +85,9 @@ const Dashboard = () => {
           font-size: 3.5rem;
           font-weight: 700;
           margin-bottom: 0.25rem;
-          color: white;
+          background: var(--accent-gradient-text);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
         }
 
         .dashboard-header p {

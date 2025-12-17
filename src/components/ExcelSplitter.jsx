@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
-import { Upload, FileSpreadsheet, Download, FileCode, Play } from 'lucide-react';
+import { Upload, FileSpreadsheet, Download, FileCode, Play, FileJson } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateFeatureFromCSV } from '../utils/aiService';
@@ -92,111 +92,330 @@ const ExcelSplitter = () => {
     };
 
     return (
-        <div className="min-h-screen bg-transparent p-8">
-            <div className="max-w-7xl mx-auto">
-                <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-12 text-center"
-                >
-                    <h1 className="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-rose-600">
-                        Excel to Feature
-                    </h1>
-                    <p className="text-xl text-gray-400">
-                        Transform your test cases into Gherkin features automatically.
-                    </p>
-                </motion.div>
+        <div className="input-form-container">
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="header-section"
+            >
+                <h1>Excel to Feature</h1>
+                <p>Convert your Excel test cases into Gherkin Feature files automatically.</p>
+            </motion.div>
 
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="mb-12"
-                >
-                    <label className="relative flex flex-col items-center justify-center w-full h-48 rounded-3xl border-2 border-dashed border-gray-600 bg-gray-900/50 backdrop-blur-sm cursor-pointer overflow-hidden group transition-all duration-300 hover:border-pink-500 hover:bg-gray-800/80">
-                        <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-rose-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="bento-grid">
+                {/* Upload Card */}
+                <div className="bento-card upload-card glass-panel">
+                    <div className="card-header">
+                        <div className="icon-wrapper"><Upload size={20} /></div>
+                        <h3>Upload Excel Sheet</h3>
+                    </div>
 
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6 z-10">
-                            <div className="p-4 rounded-full bg-gray-800 group-hover:bg-gradient-to-br group-hover:from-pink-500 group-hover:to-rose-500 transition-all duration-300 mb-4 shadow-lg group-hover:shadow-pink-500/25">
-                                <Upload className="w-8 h-8 text-gray-400 group-hover:text-white" />
-                            </div>
-                            <p className="mb-2 text-lg text-gray-300 font-medium">
-                                {fileName ? (
-                                    <span className="text-pink-400">{fileName}</span>
-                                ) : (
-                                    <>Drop your Excel file here or <span className="text-pink-400">browse</span></>
-                                )}
-                            </p>
-                            <p className="text-sm text-gray-500">Supports .xlsx and .xls</p>
+                    <label className="dropzone">
+                        <input
+                            type="file"
+                            onChange={handleFileUpload}
+                            accept=".xlsx, .xls"
+                            hidden
+                        />
+                        <div className="dropzone-content">
+                            {fileName ? (
+                                <div className="file-info">
+                                    <FileSpreadsheet size={48} className="text-green-400 mb-2" />
+                                    <p className="file-name">{fileName}</p>
+                                    <p className="sub-text">Click to replace</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <FileSpreadsheet size={48} className="icon-placeholder" />
+                                    <p>Drop Excel file here or <strong>Click to Browse</strong></p>
+                                    <p className="sub-text">Supports .xlsx and .xls</p>
+                                </>
+                            )}
                         </div>
-                        <input type="file" style={{ display: 'none' }} accept=".xlsx, .xls" onChange={handleFileUpload} />
                     </label>
-                </motion.div>
+                </div>
 
+                {/* Render Processed Groups */}
                 {Object.keys(groupedData).length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                    >
-                        <AnimatePresence>
-                            {Object.entries(groupedData).map(([groupName, rows], index) => (
-                                <motion.div
-                                    key={groupName}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: index * 0.05 }}
-                                    whileHover={{ y: -5 }}
-                                    className="group relative bg-gray-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:bg-gray-900/60 hover:border-pink-500/30 transition-all duration-300 shadow-xl"
-                                >
-                                    <div className="flex items-start justify-between mb-6">
-                                        <div className="flex-1 mr-4">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <div className="p-2 rounded-lg bg-pink-500/10 text-pink-400">
-                                                    <FileCode size={20} />
+                    <div className="results-container">
+                        <h2 className="section-title">Detected Features ({Object.keys(groupedData).length})</h2>
+                        <div className="features-grid">
+                            <AnimatePresence>
+                                {Object.entries(groupedData).map(([groupName, rows], index) => (
+                                    <motion.div
+                                        key={groupName}
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ delay: index * 0.05 }}
+                                        className="bento-card feature-card glass-panel"
+                                    >
+                                        <div className="card-header space-between">
+                                            <div className="flex-header">
+                                                <div className="icon-wrapper feature-icon"><FileCode size={18} /></div>
+                                                <div className="header-text">
+                                                    <h3 title={groupName}>{groupName}</h3>
+                                                    <span className="badge">{rows.length} Tests</span>
                                                 </div>
-                                                <span className="text-xs font-mono text-pink-400/80 uppercase tracking-wider">User Story</span>
                                             </div>
-                                            <h3 className="font-bold text-lg text-white line-clamp-2" title={groupName}>
-                                                {groupName}
-                                            </h3>
                                         </div>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-2xl font-bold text-white">{rows.length}</span>
-                                            <span className="text-xs text-gray-500">Test Cases</span>
+
+                                        <div className="card-actions">
+                                            <button
+                                                onClick={() => downloadCSV(groupName)}
+                                                className="action-btn secondary"
+                                                title="Download CSV"
+                                            >
+                                                <Download size={16} /> CSV
+                                            </button>
+
+                                            <button
+                                                onClick={() => generateFeature(groupName)}
+                                                className="action-btn primary"
+                                                disabled={processingId === groupName}
+                                            >
+                                                {processingId === groupName ? (
+                                                    <div className="spinner-dots" />
+                                                ) : (
+                                                    <>
+                                                        <Play size={16} fill="currentColor" /> Generate Feature
+                                                    </>
+                                                )}
+                                            </button>
                                         </div>
-                                    </div>
-
-                                    <div className="flex gap-3">
-                                        <button
-                                            onClick={() => downloadCSV(groupName)}
-                                            className="px-4 py-2.5 rounded-xl bg-gray-800 text-gray-300 text-sm font-medium hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2"
-                                            title="Download Raw CSV"
-                                        >
-                                            <Download size={16} />
-                                            <span>CSV</span>
-                                        </button>
-
-                                        <button
-                                            onClick={() => generateFeature(groupName)}
-                                            disabled={processingId === groupName}
-                                            className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-600 to-rose-600 text-white text-sm font-medium hover:from-pink-500 hover:to-rose-500 transition-all shadow-lg shadow-pink-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group/btn"
-                                        >
-                                            {processingId === groupName ? (
-                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                            ) : (
-                                                <>
-                                                    <Play size={16} className="fill-current group-hover/btn:translate-x-0.5 transition-transform" />
-                                                    <span>Generate</span>
-                                                </>
-                                            )}
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </AnimatePresence>
-                    </motion.div>
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+                        </div>
+                    </div>
                 )}
             </div>
+
+            <style>{`
+                .input-form-container {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    padding: 2rem;
+                }
+
+                .header-section {
+                    text-align: center;
+                    margin-bottom: 3rem;
+                }
+
+                .header-section h1 {
+                    font-size: 3rem;
+                    font-weight: 700;
+                    margin-bottom: 0.5rem;
+                    background: var(--accent-gradient-text);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                }
+
+                .header-section p {
+                    color: var(--text-muted);
+                    font-size: 1.1rem;
+                }
+
+                .bento-grid {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2rem;
+                }
+
+                .bento-card {
+                    padding: 1.5rem;
+                    border-radius: 16px;
+                    background: rgba(255, 255, 255, 0.03);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    backdrop-filter: blur(10px);
+                    transition: transform 0.2s, border-color 0.2s;
+                }
+
+                .glass-panel {
+                    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+                }
+
+                .card-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    margin-bottom: 1.5rem;
+                }
+
+                .card-header h3 {
+                    font-size: 1.1rem;
+                    font-weight: 600;
+                    color: white;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+
+                .icon-wrapper {
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 8px;
+                    border-radius: 8px;
+                    color: #8b5cf6;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                /* Upload Section */
+                .upload-card {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    width: 100%;
+                }
+
+                .dropzone {
+                    border: 2px dashed rgba(255, 255, 255, 0.2);
+                    border-radius: 12px;
+                    padding: 3rem;
+                    text-align: center;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    display: block;
+                    background: rgba(0, 0, 0, 0.2);
+                }
+
+                .dropzone:hover {
+                    border-color: #8b5cf6;
+                    background: rgba(139, 92, 246, 0.05);
+                }
+
+                .dropzone-content {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 1rem;
+                }
+
+                .icon-placeholder {
+                    color: rgba(255, 255, 255, 0.3);
+                }
+
+                .sub-text {
+                    font-size: 0.9rem;
+                    color: rgba(255, 255, 255, 0.5);
+                }
+
+                .file-name {
+                    font-size: 1.2rem;
+                    font-weight: 600;
+                    color: white;
+                }
+
+                /* Results Section */
+                .results-container {
+                    margin-top: 2rem;
+                }
+
+                .section-title {
+                    font-size: 1.5rem;
+                    margin-bottom: 1.5rem;
+                    color: white;
+                    border-left: 4px solid #8b5cf6;
+                    padding-left: 1rem;
+                }
+
+                .features-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                    gap: 1.5rem;
+                }
+
+                .feature-card {
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                }
+                
+                .feature-card:hover {
+                    transform: translateY(-4px);
+                    border-color: rgba(139, 92, 246, 0.4);
+                }
+
+                .flex-header {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 12px;
+                    width: 100%;
+                }
+
+                .header-text {
+                    flex: 1;
+                    min-width: 0;
+                }
+
+                .badge {
+                    display: inline-block;
+                    font-size: 0.75rem;
+                    padding: 2px 8px;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 12px;
+                    color: rgba(255, 255, 255, 0.7);
+                    margin-top: 4px;
+                }
+
+                .card-actions {
+                    display: flex;
+                    gap: 10px;
+                    margin-top: 1rem;
+                }
+
+                .action-btn {
+                    flex: 1;
+                    padding: 10px;
+                    border-radius: 8px;
+                    border: none;
+                    font-weight: 500;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                    transition: all 0.2s;
+                    font-size: 0.9rem;
+                }
+
+                .action-btn.primary {
+                    background: white;
+                    color: black;
+                }
+
+                .action-btn.primary:hover {
+                    background: #f0f0f0;
+                    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+                }
+                
+                .action-btn.primary:disabled {
+                    opacity: 0.7;
+                    cursor: wait;
+                }
+
+                .action-btn.secondary {
+                    background: rgba(255, 255, 255, 0.1);
+                    color: white;
+                }
+
+                .action-btn.secondary:hover {
+                    background: rgba(255, 255, 255, 0.2);
+                }
+
+                .spinner-dots {
+                    width: 20px;
+                    height: 20px;
+                    border: 2px solid rgba(0,0,0,0.1);
+                    border-left-color: black;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                }
+
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     );
 };

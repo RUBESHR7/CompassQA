@@ -3,6 +3,7 @@ import { Download, CheckCircle, MessageSquare, Send, X, Loader, Sparkles } from 
 import { refineTestCases } from '../utils/aiService';
 
 const ResultsView = ({ testCases, filename, onExport, onReset, onUpdate }) => {
+  console.log("ResultsView Received Data:", testCases);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [isRefining, setIsRefining] = useState(false);
