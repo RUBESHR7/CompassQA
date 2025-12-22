@@ -17,7 +17,7 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 const FeatureGenerator = lazy(() => import('./components/FeatureGenerator'));
 const JsonAnalyzer = lazy(() => import('./components/JsonAnalyzer'));
 const StepDefGenerator = lazy(() => import('./components/StepDefGenerator'));
-const ExcelSplitter = lazy(() => import('./components/ExcelSplitter'));
+const FeatureFile = lazy(() => import('./components/FeatureFile'));
 
 function App() {
   const [testCases, setTestCases] = useState(null);
@@ -187,9 +187,10 @@ function App() {
             </Layout>
           } />
 
-          <Route path="/excel-splitter" element={
+
+          <Route path="/excel-splitter" element={ // Keeping path same for now to avoid breaking links, can update if needed but user only asked for file/component change
             <Layout onLogoClick={handleHomeClick} onDocsClick={handleDocsClick} onHistoryClick={handleHistoryClick}>
-              <ExcelSplitter />
+              <FeatureFile />
             </Layout>
           } />
 

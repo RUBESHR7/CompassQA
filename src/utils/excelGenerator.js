@@ -6,21 +6,22 @@ export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Test Cases');
 
-    // Define columns based on User's requested format
-    // Issue Key | Summary | Step Summary | Expected Result | Folder | (Test Data)
+    // Define columns to match the "Perfect" image structure
+    // Order: ID | Summary | TC Description | Precondition | Step # | Step Desc | Input | Expected | Label | Priority | Status | Time | Folder | Category
     worksheet.columns = [
-        { header: 'Issue Key', key: 'id', width: 15 },
+        { header: 'Test Case ID', key: 'id', width: 15 },
         { header: 'Summary', key: 'summary', width: 30 },
-        { header: 'Step Summary', key: 'stepDescription', width: 40 },
-        { header: 'Test Data', key: 'stepInputData', width: 20 },
-        { header: 'Expected Result', key: 'stepExpectedOutcome', width: 30 },
-        { header: 'Folder', key: 'caseFolder', width: 30 },
-        // Keep other useful metadata at the end just in case
-        { header: 'Precondition', key: 'preConditions', width: 20 },
+        { header: 'Test Case Description', key: 'description', width: 40 },
+        { header: 'Precondition', key: 'preConditions', width: 30 },
+        { header: 'Test Steps', key: 'stepNumber', width: 10 },
+        { header: 'Step Description', key: 'stepDescription', width: 40 },
+        { header: 'Step Input Data', key: 'stepInputData', width: 25 },
+        { header: 'Step Expected Outcome', key: 'stepExpectedOutcome', width: 30 },
         { header: 'Label', key: 'label', width: 15 },
         { header: 'Priority', key: 'priority', width: 10 },
         { header: 'Status', key: 'status', width: 10 },
         { header: 'Execution Minutes', key: 'executionMinutes', width: 15 },
+        { header: 'Case Folder', key: 'caseFolder', width: 25 },
         { header: 'Test Category', key: 'testCategory', width: 20 }
     ];
 
@@ -29,69 +30,76 @@ export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
-    // Apply fill to the header cells
-    worksheet.columns.forEach((col, index) => {
-        const cell = headerRow.getCell(index + 1);
+    // Header Fill (Blue)
+    headerRow.eachCell((cell) => {
         cell.fill = {
             type: 'pattern',
             pattern: 'solid',
-            fgColor: { argb: 'FF4472C4' } // Blue header
+            fgColor: { argb: 'FF4472C4' }
         };
     });
 
-    // Add data
-    // Add data
+    // Start adding data from row 2
+    let currentRowIndex = 2;
+
     testCases.forEach((tc) => {
-        // Populate ALL fields for EVERY row to support Filtering and CSV format
-        if (tc.steps && tc.steps.length > 0) {
-            tc.steps.forEach((step) => {
-                worksheet.addRow({
-                    id: tc.id,
-                    summary: tc.summary,
-                    stepDescription: step.description,
-                    stepInputData: step.inputData,
-                    stepExpectedOutcome: step.expectedOutcome,
-                    caseFolder: tc.caseFolder,
-                    preConditions: tc.preConditions,
-                    label: tc.label,
-                    priority: tc.priority,
-                    status: tc.status,
-                    executionMinutes: tc.executionMinutes,
-                    testCategory: tc.testCategory
-                });
-            });
-            // Merging logic REMOVED to enable filtering
-        } else {
-            // Fallback if no steps
+        const startRow = currentRowIndex;
+        const steps = tc.steps && tc.steps.length > 0 ? tc.steps : [{
+            stepNumber: 1,
+            description: "No steps generated",
+            inputData: "",
+            expectedOutcome: ""
+        }];
+
+        // Add each step as a row
+        steps.forEach((step) => {
             worksheet.addRow({
                 id: tc.id,
                 summary: tc.summary,
-                stepDescription: "No steps generated",
-                stepInputData: "",
-                stepExpectedOutcome: "",
-                caseFolder: tc.caseFolder,
+                description: tc.description,
                 preConditions: tc.preConditions,
+                stepNumber: step.stepNumber,
+                stepDescription: step.description,
+                stepInputData: step.inputData,
+                stepExpectedOutcome: step.expectedOutcome,
                 label: tc.label,
                 priority: tc.priority,
                 status: tc.status,
                 executionMinutes: tc.executionMinutes,
+                caseFolder: tc.caseFolder,
                 testCategory: tc.testCategory
+            });
+            currentRowIndex++; // Increment for next step
+        });
+
+        const endRow = currentRowIndex - 1;
+
+        // MERGE CELLS for Parent Columns if there are multiple steps
+        if (endRow > startRow) {
+            // Columns to merge: id, summary, description, preConditions, label, priority, status, minutes, folder, category
+            // Indices (1-based): 1, 2, 3, 4, 9, 10, 11, 12, 13, 14
+            const mergeColIndices = [1, 2, 3, 4, 9, 10, 11, 12, 13, 14];
+
+            mergeColIndices.forEach((colIndex) => {
+                try {
+                    // mergeCells(top, left, bottom, right) or (startRow, col, endRow, col)
+                    worksheet.mergeCells(startRow, colIndex, endRow, colIndex);
+                } catch (e) {
+                    console.warn(`Failed to merge column ${colIndex} rows ${startRow}-${endRow}`, e);
+                }
             });
         }
     });
 
-    // Apply styling to all cells
+    // Apply global styling (borders, alignment)
     worksheet.eachRow((row) => {
         row.eachCell((cell) => {
-            // Borders
             cell.border = {
                 top: { style: 'thin' },
                 left: { style: 'thin' },
                 bottom: { style: 'thin' },
                 right: { style: 'thin' }
             };
-
-            // Alignment
             cell.alignment = {
                 vertical: 'middle',
                 horizontal: 'left',
@@ -102,10 +110,6 @@ export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
 
     // Generate buffer and download
     const buffer = await workbook.xlsx.writeBuffer();
-
-    // Default to xlsx, but user mentioned csv. ExcelJS writes xlsx buffer. 
-    // If we really wanted CSV, we'd use workbook.csv.writeBuffer(), but metadata/merge would be lost.
-    // For now, keep as xlsx as it supports the requested "image 2" structure best.
     const finalFilename = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
 
     const blob = new Blob([buffer], {

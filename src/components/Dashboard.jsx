@@ -16,8 +16,8 @@ const Dashboard = () => {
       delay: 0.1
     },
     {
-      title: 'Excel to Feature',
-      description: 'Split Excel by User Story and generate Feature files.',
+      title: 'Feature File Generator',
+      description: 'Generate feature files from CSV using reference samples for perfect style.',
       icon: FileSpreadsheet,
       path: '/excel-splitter',
       color: 'from-pink-500 to-rose-500',

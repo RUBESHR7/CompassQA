@@ -1,8 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { generateStepDefs } from '../utils/aiService';
-import { Loader, Copy, Check, ArrowLeft, Code, FileCode, Play } from 'lucide-react';
+import { Loader, Copy, Check, ArrowLeft, Code, FileCode, Play, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
+
+const HistoryCard = ({ item, onDelete, onLoad }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(item.output);
+    setCopied(true);
+    toast.success("Code copied to clipboard");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="history-card glass-panel"
+    >
+      <div className="card-header-history" onClick={() => setExpanded(!expanded)}>
+        <div className="header-left">
+          <div className="status-dot" />
+          <div className="file-meta">
+            <h3>Generated Steps</h3>
+            <span className="timestamp">{item.timestamp}</span>
+          </div>
+        </div>
+        <div className="header-actions">
+          <button onClick={(e) => { e.stopPropagation(); onLoad(item); }} className="action-pill">
+            Load
+          </button>
+          <div className="divider-v" />
+          <button onClick={handleCopy} className="icon-btn" title="Copy Code">
+            {copied ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="icon-btn delete" title="Delete">
+            <Trash2 size={18} />
+          </button>
+          <button className="icon-btn toggle">
+            {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="history-body"
+          >
+            <div className="preview-label">Feature Input</div>
+            <div className="preview-content">{item.input.substring(0, 100)}...</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
 
 const StepDefGenerator = () => {
   const [featureText, setFeatureText] = useState('');
@@ -11,15 +74,40 @@ const StepDefGenerator = () => {
   const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
 
+  // History State
+  const [history, setHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stepDefHistory');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('stepDefHistory', JSON.stringify(history));
+  }, [history]);
+
   const handleGenerate = async () => {
     if (!featureText.trim()) return;
     setLoading(true);
     try {
       const result = await generateStepDefs(featureText);
       setPythonCode(result);
+
+      // Add to History
+      const newItem = {
+        id: Date.now(),
+        timestamp: new Date().toLocaleTimeString(),
+        input: featureText,
+        output: result
+      };
+      setHistory(prev => [newItem, ...prev]);
+      toast.success("Steps Generated & Saved");
+
     } catch (error) {
       console.error(error);
-      alert('Failed to generate step definitions');
+      toast.error('Failed to generate step definitions');
     } finally {
       setLoading(false);
     }
@@ -28,7 +116,26 @@ const StepDefGenerator = () => {
   const handleCopy = () => {
     navigator.clipboard.writeText(pythonCode);
     setCopied(true);
+    toast.success("Copied to clipboard");
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDeleteItem = (id) => {
+    setHistory(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleLoadItem = (item) => {
+    setFeatureText(item.input);
+    setPythonCode(item.output);
+    toast.success("Loaded from history");
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleClearAll = () => {
+    if (window.confirm("Clear all history?")) {
+      setHistory([]);
+      toast.info("History cleared");
+    }
   };
 
   return (
@@ -60,13 +167,7 @@ const StepDefGenerator = () => {
 
           <div className="editor-container">
             <textarea
-              placeholder="Paste your Gherkin Feature here...
-Example:
-Feature: Login
-  Scenario: Successful Login
-    Given user is on login page
-    When user enters valid credentials
-    Then user is redirected to dashboard"
+              placeholder="Paste your Gherkin Feature here..."
               value={featureText}
               onChange={(e) => setFeatureText(e.target.value)}
               spellCheck="false"
@@ -121,11 +222,34 @@ Feature: Login
         </motion.div>
       </div>
 
+      {/* History Section */}
+      {history.length > 0 && (
+        <div className="history-section-wrapper">
+          <div className="history-header">
+            <h2>History ({history.length})</h2>
+            <button onClick={handleClearAll} className="clear-all-btn">Clear All</button>
+          </div>
+          <div className="history-list">
+            <AnimatePresence>
+              {history.map(item => (
+                <HistoryCard
+                  key={item.id}
+                  item={item}
+                  onDelete={handleDeleteItem}
+                  onLoad={handleLoadItem}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+        </div>
+      )}
+
       <style>{`
                 .input-form-container {
-                    max-width: 1400px; /* Wider for side-by-side */
+                    max-width: 1400px;
                     margin: 0 auto;
                     padding: 2rem;
+                    padding-bottom: 6rem;
                 }
 
                 .back-link {
@@ -168,8 +292,9 @@ Feature: Login
                     display: grid;
                     grid-template-columns: 1fr 1fr;
                     gap: 1.5rem;
-                    height: calc(100vh - 250px);
-                    min-height: 600px;
+                    height: calc(100vh - 350px);
+                    min-height: 500px;
+                    margin-bottom: 3rem;
                 }
 
                 .bento-card {
@@ -325,10 +450,8 @@ Feature: Login
                     align-items: center;
                     justify-content: center;
                 }
-
-                .icon-btn:hover {
-                    background: rgba(255, 255, 255, 0.2);
-                }
+                .icon-btn.delete:hover { background: rgba(255, 0, 0, 0.1); color: #ff6b6b; }
+                .icon-btn:hover { background: rgba(255, 255, 255, 0.2); }
 
                 .spin {
                     animation: spin 1s linear infinite;
@@ -337,6 +460,68 @@ Feature: Login
                 @keyframes spin {
                     to { transform: rotate(360deg); }
                 }
+
+                /* History Styles */
+                .history-section-wrapper {
+                    margin-top: 3rem;
+                    border-top: 1px solid rgba(255,255,255,0.1);
+                    padding-top: 2rem;
+                }
+                .history-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 1.5rem;
+                }
+                .history-header h2 { color: white; font-size: 1.5rem; }
+                .clear-all-btn {
+                    background: rgba(255,0,0,0.1);
+                    color: #ff6b6b;
+                    border: 1px solid rgba(255,0,0,0.2);
+                    padding: 6px 12px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                }
+                .history-list { display: flex; flex-direction: column; gap: 1rem; }
+                
+                .history-card {
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 12px;
+                    overflow: hidden;
+                }
+                .card-header-history {
+                    padding: 1rem 1.5rem;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    cursor: pointer;
+                }
+                .header-left { display: flex; align-items: center; gap: 1rem; }
+                .status-dot { width: 8px; height: 8px; background: #60a5fa; border-radius: 50%; box-shadow: 0 0 10px #60a5fa; }
+                .file-meta h3 { margin: 0; color: white; }
+                .timestamp { font-size: 0.8rem; color: rgba(255,255,255,0.4); }
+                .header-actions { display: flex; align-items: center; gap: 8px; }
+                
+                .action-pill {
+                    background: rgba(139, 92, 246, 0.1);
+                    color: #a78bfa;
+                    border: 1px solid rgba(139, 92, 246, 0.2);
+                    padding: 4px 12px;
+                    border-radius: 12px;
+                    font-size: 0.85rem;
+                    cursor: pointer;
+                }
+                .action-pill:hover { background: rgba(139, 92, 246, 0.2); color: white; }
+                .divider-v { width: 1px; height: 20px; background: rgba(255,255,255,0.1); margin: 0 4px; }
+                
+                .history-body {
+                    border-top: 1px solid rgba(255,255,255,0.05);
+                    background: rgba(0,0,0,0.2);
+                    padding: 1rem 1.5rem;
+                }
+                .preview-label { font-size: 0.75rem; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 0.5rem; }
+                .preview-content { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #94a3b8; }
 
                 @media (max-width: 1024px) {
                     .bento-grid.two-column {
