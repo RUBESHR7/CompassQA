@@ -35,8 +35,8 @@ jobs:
         env:
           # 🔒 SECURITY: API key is injected from GitHub Secrets during build
           # The secret is stored securely in repository settings and never exposed in logs
-          # To update: Settings → Secrets and variables → Actions → VITE_GEMINI_API_KEY
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          # To update: Settings → Secrets and variables → Actions → VITE_MISTRAL_API_KEY
+          VITE_MISTRAL_API_KEY: ${{ secrets.VITE_MISTRAL_API_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

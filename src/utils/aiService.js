@@ -4,7 +4,7 @@ import { SAMPLE_CSV, SAMPLE_FEATURE, SAMPLE_FEATURE_REF, SAMPLE_STEP_DEF_REF } f
 
 const API_KEY = import.meta.env.VITE_MISTRAL_API_KEY || "LRLyHILgxpL0jvTaHkHJyHKl0eFppnMs";
 const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
-const MODEL = "mistral-large-latest";
+const MODEL = "mistral-small-latest";
 
 /**
  * Helper function to call Mistral API
