@@ -1,80 +1,91 @@
 import React, { useState } from 'react';
 import { generateCucumberFeature } from '../utils/aiService';
+import ChatAssistant from './ChatAssistant';
 import { Loader, Copy, Check, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const FeatureGenerator = () => {
-    const [userStory, setUserStory] = useState('');
-    const [featureContent, setFeatureContent] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [copied, setCopied] = useState(false);
-    const navigate = useNavigate();
+  const [userStory, setUserStory] = useState('');
+  const [featureContent, setFeatureContent] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const navigate = useNavigate();
 
-    const handleGenerate = async () => {
-        if (!userStory.trim()) return;
-        setLoading(true);
-        try {
-            const result = await generateCucumberFeature(userStory);
-            setFeatureContent(result);
-        } catch (error) {
-            console.error(error);
-            alert('Failed to generate feature file');
-        } finally {
-            setLoading(false);
-        }
-    };
+  const handleGenerate = async () => {
+    if (!userStory.trim()) return;
+    setLoading(true);
+    try {
+      const result = await generateCucumberFeature(userStory);
+      setFeatureContent(result);
+    } catch (error) {
+      console.error(error);
+      alert('Failed to generate feature file');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(featureContent);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
+  const handleCopy = () => {
+    navigator.clipboard.writeText(featureContent);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
-    return (
-        <div className="tool-container">
-            <button className="back-btn" onClick={() => navigate('/dashboard')}>
-                <ArrowLeft size={20} /> Back to Dashboard
-            </button>
+  return (
+    <div className="tool-container">
+      <button className="back-btn" onClick={() => navigate('/dashboard')}>
+        <ArrowLeft size={20} /> Back to Dashboard
+      </button>
 
-            <div className="header">
-                <h1>Feature File Generator</h1>
-                <p>Convert your User Story into a standardized Cucumber Feature file.</p>
-            </div>
+      <div className="header">
+        <h1>Feature File Generator</h1>
+        <p>Convert your User Story into a standardized Cucumber Feature file.</p>
+      </div>
 
-            <div className="content-grid">
-                <div className="input-section">
-                    <h3>User Story</h3>
-                    <textarea
-                        placeholder="As a user, I want to..."
-                        value={userStory}
-                        onChange={(e) => setUserStory(e.target.value)}
-                    />
-                    <button
-                        className="generate-btn"
-                        onClick={handleGenerate}
-                        disabled={loading || !userStory.trim()}
-                    >
-                        {loading ? <><Loader className="spin" size={18} /> Generating...</> : 'Generate Feature File'}
-                    </button>
-                </div>
+      <div className="content-grid">
+        <div className="input-section">
+          <h3>User Story</h3>
+          <textarea
+            placeholder="As a user, I want to..."
+            value={userStory}
+            onChange={(e) => setUserStory(e.target.value)}
+          />
+          <button
+            className="generate-btn"
+            onClick={handleGenerate}
+            disabled={loading || !userStory.trim()}
+          >
+            {loading ? <><Loader className="spin" size={18} /> Generating...</> : 'Generate Feature File'}
+          </button>
+        </div>
 
-                <div className="output-section">
-                    <div className="output-header">
-                        <h3>Generated Gherkin</h3>
-                        {featureContent && (
-                            <button className="copy-btn" onClick={handleCopy}>
-                                {copied ? <Check size={18} /> : <Copy size={18} />}
-                                {copied ? 'Copied!' : 'Copy Code'}
-                            </button>
-                        )}
-                    </div>
-                    <pre className="code-block">
-                        {featureContent || "// Generated feature file will appear here..."}
-                    </pre>
-                </div>
-            </div>
+        <div className="output-section">
+          <div className="output-header">
+            <h3>Generated Gherkin</h3>
+            {featureContent && (
+              <button className="copy-btn" onClick={handleCopy}>
+                {copied ? <Check size={18} /> : <Copy size={18} />}
+                {copied ? 'Copied!' : 'Copy Code'}
+              </button>
+            )}
+          </div>
+          <pre className="code-block">
+            {featureContent || "// Generated feature file will appear here..."}
+          </pre>
+        </div>
+      </div>
 
-            <style>{`
+
+      <ChatAssistant
+        contextData={featureContent}
+        contextType="gherkin"
+        onUpdate={(newContent) => {
+          setFeatureContent(newContent);
+          alert("Feature updated by AI!");
+        }}
+      />
+
+      <style>{`
         .tool-container {
           padding: 2rem;
           max-width: 1200px;
@@ -196,8 +207,8 @@ const FeatureGenerator = () => {
           }
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 };
 
 export default FeatureGenerator;

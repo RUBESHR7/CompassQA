@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { generateStepDefs } from '../utils/aiService';
+import ChatAssistant from './ChatAssistant';
 import { Loader, Copy, Check, ArrowLeft, Code, FileCode, Play, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -221,6 +222,15 @@ const StepDefGenerator = () => {
           </div>
         </motion.div>
       </div>
+
+      <ChatAssistant
+        contextData={pythonCode}
+        contextType="step-def"
+        onUpdate={(newCode) => {
+          setPythonCode(newCode);
+          toast.success("Code updated by AI");
+        }}
+      />
 
       {/* History Section */}
       {history.length > 0 && (

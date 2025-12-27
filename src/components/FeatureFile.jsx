@@ -5,8 +5,9 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateFeatureFromCSV, generateJsonFromFeature } from '../utils/aiService';
 import { SAMPLE_CSV, SAMPLE_FEATURE, SAMPLE_JSON } from '../utils/sampleData';
+import ChatAssistant from './ChatAssistant';
 
-const FeatureCard = ({ item, onDelete }) => {
+const FeatureCard = ({ item, onDelete, onUpdate }) => {
     const [expanded, setExpanded] = useState(false);
     const [jsonExpanded, setJsonExpanded] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -141,6 +142,12 @@ const FeatureCard = ({ item, onDelete }) => {
                             className="code-editor"
                             spellCheck="false"
                         />
+                        {/* Chat Assistant for refining this specific feature */}
+                        <ChatAssistant
+                            contextData={item.content}
+                            contextType="gherkin"
+                            onUpdate={(newContent) => onUpdate(item.id, newContent)}
+                        />
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -221,6 +228,13 @@ const FeatureFile = () => {
 
     const handleDeleteItem = (id) => {
         setHistory(prev => prev.filter(item => item.id !== id));
+    };
+
+    const handleUpdateItem = (id, newContent) => {
+        setHistory(prev => prev.map(item =>
+            item.id === id ? { ...item, content: newContent } : item
+        ));
+        toast.success("Feature Content Updated!");
     };
 
     const handleClearAll = () => {
@@ -304,7 +318,12 @@ const FeatureFile = () => {
                     <div className="history-list">
                         <AnimatePresence>
                             {history.map(item => (
-                                <FeatureCard key={item.id} item={item} onDelete={handleDeleteItem} />
+                                <FeatureCard
+                                    key={item.id}
+                                    item={item}
+                                    onDelete={handleDeleteItem}
+                                    onUpdate={handleUpdateItem}
+                                />
                             ))}
                         </AnimatePresence>
                     </div>

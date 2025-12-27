@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { analyzeFeatureToJson } from '../utils/aiService';
+import ChatAssistant from './ChatAssistant';
 import { Loader, Copy, Check, ArrowLeft, FileJson, Braces, Play, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -221,6 +222,15 @@ const JsonAnalyzer = () => {
           </div>
         </motion.div>
       </div>
+
+      <ChatAssistant
+        contextData={jsonOutput}
+        contextType="json-analysis"
+        onUpdate={(newJson) => {
+          setJsonOutput(newJson);
+          toast.success("JSON updated by AI");
+        }}
+      />
 
       {/* History Section */}
       {history.length > 0 && (

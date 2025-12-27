@@ -161,19 +161,116 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
   }
 };
 
-export const refineTestCases = async (currentTestCases, userInstructions) => {
+import { KNOWLEDGE_BASE } from './knowledgeBase';
+
+export const chatWithAI = async (contextData, userInstructions, contextType = "test-cases") => {
+  let systemContext = "";
+  let dataContext = "";
+
+  const commonKnowledge = `
+    Use the following KNOWLEDGE BASE to answer general questions:
+    ${KNOWLEDGE_BASE}
+  `;
+
+  if (contextType === "test-cases") {
+    systemContext = `
+      You are "Compass AI", an expert QA Automation Engineer.
+      You are assisting a user with Test Case Design.
+      ${commonKnowledge}
+      
+      Your capability:
+      1. **Chat**: Answer questions about QA, testing, or general topics.
+      2. **Refine**: Modify the provided Test Cases based on instructions.
+
+      Current Data Structure (Test Cases):
+      { "suggestedFilename": "...", "testCases": [...] }
+
+      **CRITICAL OUTPUT RULES**:
+      You must ALWAYS return a JSON object with this structure:
+      {
+        "message": "Your conversational response here.",
+        "updatedData": null | { ... new data matching the structure ... }
+      }
+
+      - If the user says "Hi", "Hello", or asks a question WITHOUT requesting changes:
+        - Set "message" to a friendly response.
+        - Set "updatedData" to NULL.
+      
+      - If the user asks to MODIFY the test cases (e.g., "Add a step", "Change priority"):
+        - Perform the modification on the "Current Test Cases".
+        - Set "updatedData" to the FULL updated JSON object (including suggestedFilename).
+        - Set "message" to a confirmation (e.g., "I've updated the test cases as requested.").
+    `;
+    dataContext = `Current Test Cases: ${JSON.stringify(contextData)}`;
+  } else if (contextType === "gherkin") {
+    systemContext = `
+      You are "Compass AI", an expert QA Automation Engineer.
+      You are assisting a user with Gherkin Feature Files.
+      ${commonKnowledge}
+
+      Your capability:
+      1. **Chat**: Answer questions about Gherkin, BDD, or Cucumber.
+      2. **Refine**: Modify the provided Feature File text.
+
+      **CRITICAL OUTPUT RULES**:
+      You must ALWAYS return a JSON object with this structure:
+      {
+        "message": "Your conversational response here.",
+        "updatedData": null | "The full updated Gherkin text string"
+      }
+
+      - If the user chats: "message" = response, "updatedData" = null.
+      - If user modifies: "message" = confirmation, "updatedData" = NEW Gherkin text.
+    `;
+    dataContext = `Current Feature File:\n${contextData}`;
+  } else if (contextType === "step-def") {
+    systemContext = `
+      You are "Compass AI", an expert QA Automation Engineer.
+      You are assisting a user with Python/Selenium Step Definitions.
+      ${commonKnowledge}
+
+      Your capability:
+      1. **Chat**: Answer questions about Python, Selenium, or coding.
+      2. **Refine**: Modify the provided Python code.
+
+      **CRITICAL OUTPUT RULES**:
+      You must ALWAYS return a JSON object with this structure:
+      {
+        "message": "Your conversational response here.",
+        "updatedData": null | "The full updated Python code string"
+      }
+    `;
+    dataContext = `Current Code:\n${contextData}`;
+  } else if (contextType === "json-analysis") {
+    systemContext = `
+      You are "Compass AI", an expert QA Automation Engineer.
+      You are helping a user analyze/convert Gherkin to JSON.
+      ${commonKnowledge}
+
+      Your capability:
+      1. **Chat**: Answer questions about JSON structure or data.
+      2. **Refine**: Modify the provided JSON content.
+
+      **CRITICAL OUTPUT RULES**:
+      You must ALWAYS return a JSON object with this structure:
+      {
+        "message": "Your conversational response here.",
+        "updatedData": null | { ... full valid JSON object ... }
+      }
+    `;
+    dataContext = `Current JSON:\n${JSON.stringify(contextData, null, 2)}`;
+  }
+
   const systemPrompt = `
-    You are an expert QA Engineer. Refine the provided test cases based on user instructions.
+    ${systemContext}
     
-    Rules:
-    1. Output MUST be valid JSON matching the previous structure.
-    2. Maintain the "inputData": "" constraint.
-    3. Apply the user's specific feedback.
-    4. Return the FULL updated list inside { "suggestedFilename": "...", "testCases": [...] }.
+    IMPORTANT: 
+    - Output RAW JSON only. No markdown formatting.
+    - If updatedData is provided, it must be the COMPLETE file/object, not just a diff.
   `;
 
   const userMessage = `
-    Current Test Cases: ${JSON.stringify(currentTestCases)}
+    ${dataContext}
     User Instructions: "${userInstructions}"
   `;
 
@@ -182,11 +279,28 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
       { role: "system", content: systemPrompt },
       { role: "user", content: userMessage }
     ]);
+
     const cleanText = responseText.replace(/^```json/, '').replace(/^```/, '').replace(/```$/, '').trim();
     return JSON.parse(cleanText);
   } catch (error) {
-    throw new Error("Failed to refine: " + error.message);
+    throw new Error("AI Chat Failed: " + error.message);
   }
+};
+
+// Deprecated wrapper for backward compatibility if needed, or simply remove if we update calls.
+// We will update calls to use chatWithAI directly.
+export const refineTestCases = async (currentTestCases, userInstructions) => {
+  // Adapter to match old return signature if necessary, 
+  // but the UI expects specific fields. The old UI expected directly the JSON of test cases?
+  // Let's check the old code: 
+  // "if (result.testCases) { onUpdate(result.testCases...) }"
+  // New structure: { message, updatedData: { testCases... } }
+  // We should just update the UI to use chatWithAI.
+  const result = await chatWithAI(currentTestCases, userInstructions, "test-cases");
+  if (result.updatedData) {
+    return { ...result.updatedData, message: result.message };
+  }
+  return { message: result.message };
 };
 
 export const generateCucumberFeature = async (userStory) => {
