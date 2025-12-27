@@ -2,7 +2,7 @@
 
 import { SAMPLE_CSV, SAMPLE_FEATURE, SAMPLE_FEATURE_REF, SAMPLE_STEP_DEF_REF } from './sampleData';
 
-const API_KEY = import.meta.env.VITE_MISTRAL_API_KEY || "LRLyHILgxpL0jvTaHkHJyHKl0eFppnMs";
+const API_KEY = import.meta.env.VITE_MISTRAL_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
 const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
 const MODEL = "mistral-small-latest";
 
@@ -11,7 +11,7 @@ const MODEL = "mistral-small-latest";
  */
 const callMistralAPI = async (messages, responseFormat = "json_object") => {
   if (!API_KEY) {
-    throw new Error("API Key is missing. Please check your .env file or hardcoded fallback.");
+    throw new Error("API Key is missing. Please check your .env file or VITE_MISTRAL_API_KEY variable.");
   }
 
   try {
