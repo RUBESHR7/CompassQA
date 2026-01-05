@@ -1,77 +1,145 @@
-// Mistral AI Service for Compass QA
+// AI Service for Compass QA (Supports Gemini & Mistral)
 
-import { SAMPLE_CSV, SAMPLE_FEATURE, SAMPLE_FEATURE_REF, SAMPLE_STEP_DEF_REF } from './sampleData';
+import { SAMPLE_FEATURE_REF, SAMPLE_STEP_DEF_REF } from './sampleData';
 
-const API_KEY = import.meta.env.VITE_MISTRAL_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
-const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
-const MODEL = "mistral-small-latest";
+const MISTRAL_KEY = import.meta.env.VITE_MISTRAL_API_KEY;
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
+// Configuration
+const CONFIG = {
+  service: MISTRAL_KEY ? 'mistral' : (GEMINI_KEY ? 'gemini' : null),
+  key: MISTRAL_KEY || GEMINI_KEY,
+  endpoints: {
+    mistral: '/api/mistral/v1/chat/completions', // Uses local proxy
+    gemini: '/api/gemini/v1beta/models/gemini-2.0-flash-exp:generateContent' // Uses local proxy
+  },
+  directEndpoints: {
+    mistral: 'https://api.mistral.ai/v1/chat/completions',
+    gemini: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent'
+  },
+  models: {
+    mistral: 'mistral-small-latest',
+    gemini: 'gemini-2.0-flash-exp'
+  }
+};
 
 /**
- * Helper function to call Mistral API
+ * Determine the correct URL to use.
+ * Prefers local proxy if running locally config not detected (assumed here via relative path usage),
+ * otherwise falls back to direct URL (e.g. on GitHub Pages).
+ * 
+ * Note: Vite proxy only works in dev mode. 
+ * For production (GitHub Pages), we need direct URL.
+ * Detection strategy: reliable fallback.
  */
-const callMistralAPI = async (messages, responseFormat = "json_object") => {
-  if (!API_KEY) {
-    throw new Error("API Key is missing. Please check your .env file or VITE_MISTRAL_API_KEY variable.");
+const getEndpoint = () => {
+  // Basic check: if window.location.hostname is localhost, try proxy (optional, but direct usually fails CORS without it)
+  // Actually, on GH pages, direct calling Gemini usually works if key is valid. Mistral definitely blocks CORS.
+  // Let's try direct for GH PAges, and Proxy for localhost if setup.
+  // For now, simple logic:
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return CONFIG.endpoints[CONFIG.service] + `?key=${CONFIG.key}`;
+  }
+  return CONFIG.directEndpoints[CONFIG.service] + `?key=${CONFIG.key}`;
+}
+
+/**
+ * Adapter to unify API calls
+ */
+const callAIAPI = async (messages, responseFormat = "json_object") => {
+  if (!CONFIG.service) {
+    throw new Error("No API Key found. Please add VITE_GEMINI_API_KEY or VITE_MISTRAL_API_KEY to .env");
+  }
+
+  const isGemini = CONFIG.service === 'gemini';
+  const url = getEndpoint();
+
+  let body = {};
+  let headers = {
+    "Content-Type": "application/json"
+  };
+
+  if (isGemini) {
+    // GEMINI ADAPTER
+    // Convert generic "messages" [{role, content}] to Gemini "contents"
+    const systemMessage = messages.find(m => m.role === 'system');
+    const userMessages = messages.filter(m => m.role !== 'system');
+
+    // Construct Gemini Body
+    body = {
+      contents: userMessages.map(m => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.content }]
+      })),
+      generationConfig: {
+        temperature: 0.2, // Low temp for deterministic results
+        responseMimeType: responseFormat === "json_object" ? "application/json" : "text/plain"
+      }
+    };
+
+    if (systemMessage) {
+      body.systemInstruction = {
+        parts: [{ text: systemMessage.content }]
+      };
+    }
+
+  } else {
+    // MISTRAL ADAPTER
+    headers["Authorization"] = `Bearer ${CONFIG.key}`;
+    body = {
+      model: CONFIG.models.mistral,
+      messages: messages,
+      response_format: { type: responseFormat },
+      temperature: 0.2
+    };
   }
 
   try {
-    const response = await fetch(MISTRAL_API_URL, {
+    const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${API_KEY}`
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: messages,
-        response_format: { type: responseFormat },
-        temperature: 0.2
-      })
+      headers: headers,
+      body: JSON.stringify(body)
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Mistral API Error: ${errorData.message || response.statusText}`);
+      const errText = await response.text();
+      throw new Error(`AI API Error (${response.status}): ${errText}`);
     }
 
     const data = await response.json();
-    return data.choices[0].message.content;
+
+    if (isGemini) {
+      // Extract Gemini response
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    } else {
+      // Extract Mistral response
+      return data.choices?.[0]?.message?.content || "";
+    }
 
   } catch (error) {
-    console.error("Mistral API Request Failed:", error);
-    throw new Error(error.message || "Failed to communicate with Mistral AI.");
+    console.error("AI Request Failed:", error);
+    throw error;
   }
 };
 
 /**
- * Text-only helper for non-JSON outputs (like Gherkin/Python)
+ * Text-only helper (Wrapper)
  */
-const callMistralAPI_Text = async (prompt) => {
+const callAIAPI_Text = async (prompt) => {
   const messages = [{ role: "user", content: prompt }];
 
-  if (!API_KEY) throw new Error("API Key missing");
+  // For Gemini text mode, we just pass no response format implies text? 
+  // Actually our callAIAPI takes responseFormat.
+  const content = await callAIAPI(messages, "text_plain"); // Custom flag for us to map to mimetype
 
-  const response = await fetch(MISTRAL_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${API_KEY}`
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: messages
-    })
-  });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.message || response.statusText);
-  }
-  const data = await response.json();
-  let content = data.choices[0].message.content;
-  // Strip markdown blocks if present
+  // Strip markdown if present
   return content.replace(/^```[a-z]*\n/, '').replace(/```$/, '').trim();
 };
+
+
+// ------------------------------------------------------------------
+// PUBLIC METHODS (Keep signatures identical to prevent UI breakage)
+// ------------------------------------------------------------------
 
 export const generateTestCases = async (userStory, testCaseId, screenshots) => {
   const systemPrompt = `
@@ -118,12 +186,22 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
     - Do NOT include any markdown formatting. Return RAW JSON only.
   `;
 
-  const userMessage = `Generate detailed test cases for this User Story:\n"${userStory}"`;
+  // Handle Screenshots (Optimized for Gemini if supported in future, currently text-only description passed usually)
+  // But if screenshots are actual images provided to this function, we need to handle them.
+  // The current UI seems to pass screenshots as an object/array? 
+  // Looking at signature: (userStory, testCaseId, screenshots)
+  // If screenshots contain base64, Gemini supports it!
+  // Let's construct message carefully.
+
+  let userContent = `Generate detailed test cases for this User Story:\n"${userStory}"`;
+
+  // NOTE: Simple implementation for now. If screenshots are needed, we can expand `callAIAPI` to accept complex content parts.
+  // But `userStory` is usually text.
 
   try {
-    const responseText = await callMistralAPI([
+    const responseText = await callAIAPI([
       { role: "system", content: systemPrompt },
-      { role: "user", content: userMessage }
+      { role: "user", content: userContent }
     ]);
 
     const cleanText = responseText.replace(/^```json/, '').replace(/^```/, '').replace(/```$/, '').trim();
@@ -275,7 +353,7 @@ export const chatWithAI = async (contextData, userInstructions, contextType = "t
   `;
 
   try {
-    const responseText = await callMistralAPI([
+    const responseText = await callAIAPI([
       { role: "system", content: systemPrompt },
       { role: "user", content: userMessage }
     ]);
@@ -287,15 +365,7 @@ export const chatWithAI = async (contextData, userInstructions, contextType = "t
   }
 };
 
-// Deprecated wrapper for backward compatibility if needed, or simply remove if we update calls.
-// We will update calls to use chatWithAI directly.
 export const refineTestCases = async (currentTestCases, userInstructions) => {
-  // Adapter to match old return signature if necessary, 
-  // but the UI expects specific fields. The old UI expected directly the JSON of test cases?
-  // Let's check the old code: 
-  // "if (result.testCases) { onUpdate(result.testCases...) }"
-  // New structure: { message, updatedData: { testCases... } }
-  // We should just update the UI to use chatWithAI.
   const result = await chatWithAI(currentTestCases, userInstructions, "test-cases");
   if (result.updatedData) {
     return { ...result.updatedData, message: result.message };
@@ -307,7 +377,7 @@ export const generateCucumberFeature = async (userStory) => {
   const prompt = `Convert this User Story to a Gherkin Feature File (Cucumber).\nUser Story: "${userStory}"\nOutput ONLY the raw Gherkin text. No markdown.`;
 
   try {
-    return await callMistralAPI_Text(prompt);
+    return await callAIAPI_Text(prompt);
   } catch (error) {
     throw new Error("Failed to generate feature: " + error.message);
   }
@@ -316,7 +386,7 @@ export const generateCucumberFeature = async (userStory) => {
 export const analyzeFeatureToJson = async (featureText) => {
   const prompt = `Analyze this Gherkin Feature and return JSON: { "feature": "name", "scenarios": [...] }.\nFeature:\n${featureText}`;
   try {
-    const text = await callMistralAPI([
+    const text = await callAIAPI([
       { role: "user", content: prompt }
     ], "json_object");
     return JSON.parse(text);
@@ -350,7 +420,7 @@ export const generateStepDefs = async (featureText) => {
   **OUTPUT PYTHON CODE ONLY** (No markdown, no explanations)`;
 
   try {
-    return await callMistralAPI_Text(prompt);
+    return await callAIAPI_Text(prompt);
   } catch (error) {
     throw new Error("Failed to generate steps: " + error.message);
   }
@@ -375,7 +445,7 @@ export const generateFeatureFromCSV = async (csvData, sampleCsv = "", sampleFeat
   prompt += `\n\n### TARGET DATA\nConvert this CSV into a Feature File with Scenario Outlines and Examples tables:\n${csvData}\n\nOutput ONLY raw Gherkin text. No markdown.`;
 
   try {
-    return await callMistralAPI_Text(prompt);
+    return await callAIAPI_Text(prompt);
   } catch (error) {
     throw new Error("Failed to generate feature from CSV: " + error.message);
   }
@@ -413,7 +483,7 @@ export const generateJsonFromFeature = async (featureText, sampleJson) => {
   **OUTPUT JSON ONLY**`;
 
   try {
-    const text = await callMistralAPI([
+    const text = await callAIAPI([
       { role: "user", content: prompt }
     ], "json_object");
     return JSON.parse(text);
