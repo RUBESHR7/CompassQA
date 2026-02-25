@@ -73,17 +73,25 @@ const ResultsView = ({ testCases, filename, onExport, onReset, onUpdate }) => {
                     <td>{tc.preConditions}</td>
                     <td>
                       <ol className="steps-list">
-                        {tc.steps && tc.steps.length > 0 ? tc.steps.map((step, i) => (
-                          <li key={i}>
-                            <strong>{step.description}</strong>
-                            {step.inputData && <><br /><span className="step-detail">Input: {step.inputData}</span></>}
-                            <br />
-                            <span className="step-detail">Expected: {step.expectedOutcome}</span>
-                          </li>
-                        )) : <li>No steps defined</li>}
+                        {(() => {
+                          // Normalize: AI may return steps as string, object, or array
+                          const steps = Array.isArray(tc.steps)
+                            ? tc.steps
+                            : typeof tc.steps === 'string'
+                              ? [{ description: tc.steps, inputData: '', expectedOutcome: '' }]
+                              : [];
+                          return steps.length > 0 ? steps.map((step, i) => (
+                            <li key={i}>
+                              <strong>{step.description}</strong>
+                              {step.inputData && <><br /><span className="step-detail">Input: {step.inputData}</span></>}
+                              <br />
+                              <span className="step-detail">Expected: {step.expectedOutcome}</span>
+                            </li>
+                          )) : <li>No steps defined</li>;
+                        })()}
                       </ol>
                     </td>
-                    <td>{tc.steps && tc.steps.length > 0 ? tc.steps[tc.steps.length - 1].expectedOutcome : '-'}</td>
+                    <td>{Array.isArray(tc.steps) && tc.steps.length > 0 ? tc.steps[tc.steps.length - 1].expectedOutcome : '-'}</td>
                     <td>
                       <span className={`badge badge-${(tc.priority || 'Medium').toLowerCase()}`}>
                         {tc.priority || 'Medium'}
