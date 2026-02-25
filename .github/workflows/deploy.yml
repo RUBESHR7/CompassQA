@@ -1,4 +1,4 @@
-name: Deploy to Vercel
+name: Security Audit & Build Check
 
 on:
   push:
@@ -7,9 +7,10 @@ on:
     branches: [main]
 
 jobs:
-  security-audit:
-    name: Security Audit
+  security-and-build:
+    name: Security Audit & Build Check
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,49 +24,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Audit dependencies for known CVEs
-      - name: NPM Security Audit
-        run: npm audit --audit-level=high
-        continue-on-error: true  # Don't fail build on moderate issues, just report
-
-      # Check for secrets accidentally committed
-      - name: Check for exposed secrets
+      # Check for secrets accidentally committed into source code
+      - name: Check for exposed API keys
         run: |
-          if grep -r "GEMINI_API_KEY=AI" --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" . --exclude-dir=node_modules --exclude-dir=.next; then
-            echo "⚠️  WARNING: API key may be hardcoded in source. Please review."
+          if grep -rn "AIzaSy" --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" . \
+            --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.git; then
+            echo "❌ WARNING: Possible API key found in source code!"
             exit 1
           fi
-          echo "✅ No hardcoded API keys detected"
+          echo "✅ No hardcoded API keys detected in source files."
 
-  deploy:
-    name: Deploy to Vercel
-    runs-on: ubuntu-latest
-    needs: security-audit
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      # Audit dependencies for known CVEs (report only, don't block)
+      - name: NPM Security Audit
+        run: npm audit --audit-level=critical || echo "⚠️ Non-critical vulnerabilities found - review recommended"
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
+      # Verify the project builds successfully
       - name: Build
         run: npm run build
         env:
-          # Server-side only — NEVER use NEXT_PUBLIC_ for secret keys
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
+          # Dummy values for build-time check only — real keys are on Vercel
+          GEMINI_API_KEY: build-check-only
+          MISTRAL_API_KEY: build-check-only
