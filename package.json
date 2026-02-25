@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "eslint": "^9.19.0",
-    "eslint-config-next": "15.1.9"
+    "eslint-config-next": "16.1.6"
   },
   "overrides": {
     "eslint": "^9.19.0"
