@@ -27,7 +27,7 @@ const ChatAssistant = ({ contextData, contextType, onUpdate }) => {
     setLoading(true);
 
     try {
-      const result = await chatWithAI(contextData, userMsg, contextType);
+      const result = await chatWithAI(contextData, userMsg, contextType, messages);
 
       // Update the chat with AI's response
       if (result.message) {

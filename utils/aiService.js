@@ -5,23 +5,54 @@ import { SAMPLE_FEATURE_REF, SAMPLE_STEP_DEF_REF } from './sampleData';
 const SERVER_URL = '/api/ai/chat';
 
 /**
- * Adapter to unify API calls via Node.js Backend
+ * Memory Management: Persistent learning across sessions
+ */
+const getGlobalMemory = () => {
+  if (typeof window === 'undefined') return "";
+  const memory = localStorage.getItem('compass_qa_memory');
+  if (!memory) return "";
+
+  try {
+    const rules = JSON.parse(memory);
+    return rules.map((r, i) => `${i + 1}. ${r}`).join('\n');
+  } catch (e) {
+    return "";
+  }
+};
+
+/**
+ * Adapter to unify API calls via Node.js Backend with Client-side Fallback
  */
 const callAIAPI = async (messages, responseFormat = "json_object") => {
+  const memoryContext = getGlobalMemory();
+  const enhancedMessages = [...messages];
+
+  if (memoryContext) {
+    // Inject memory into the first system message if it exists
+    const systemIdx = enhancedMessages.findIndex(m => m.role === 'system');
+    const memoryInstruction = `\n\n### LEARNED PREFERENCES (PAST CONVERSATIONS):\n${memoryContext}\nFollow these preferences strictly as they reflect the user's established standards.`;
+
+    if (systemIdx !== -1) {
+      enhancedMessages[systemIdx].content += memoryInstruction;
+    } else {
+      enhancedMessages.unshift({ role: 'system', content: memoryInstruction });
+    }
+  }
+
   try {
     const response = await fetch(SERVER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages, format: responseFormat })
+      body: JSON.stringify({ messages: enhancedMessages, format: responseFormat })
     });
 
     if (response.ok) {
       const data = await response.json();
       return data.content;
     }
-    return await clientSideFallback(messages, responseFormat);
+    return await clientSideFallback(enhancedMessages, responseFormat);
   } catch (error) {
-    return await clientSideFallback(messages, responseFormat);
+    return await clientSideFallback(enhancedMessages, responseFormat);
   }
 };
 
@@ -69,7 +100,6 @@ const clientSideFallback = async (messages, responseFormat) => {
   throw new Error("AI Fallback failed");
 };
 
-
 /**
  * Text-only helper (Wrapper)
  */
@@ -94,58 +124,39 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
     1.  **High Detail**: Every field must be verbose and specific.
     2.  **Step Count**: Each test case MUST have **5 to 7 steps**.
     3.  **Description**: Must be a complete sentence covering Action + Data.
-    4.  **Expected Outcome**: Must be specific.
-    5.  **Scope**: Cover Happy Path, Negative Scenarios, and Edge Cases.
-    
-    ### OUTPUT SCHEMA (JSON ONLY):
-    You must return a JSON object with this exact structure:
+    4.  **Priority**: Use 'P0 (Critical)', 'P1 (High)', 'P2 (Medium)', or 'P3 (Low)'.
+    5.  **Test Data**: If sensitive, use placeholders like <username> or <password>.
+    6.  **Edge Cases**: Include at least one negative or boundary value test case.
+
+    ### OUTPUT FORMAT:
+    You MUST return a JSON object with this EXACT structure:
     {
-      "suggestedFilename": "string (e.g., FeatureName_TestCases.xlsx)",
+      "suggestedFilename": "AMCC-XXXX_FeatureName.xlsx",
       "testCases": [
         {
-          "id": "TC_XXX", 
-          "summary": "Concise title",
-          "description": "Detailed explanation of what is being tested",
-          "preConditions": "Prerequisites",
-          "steps": [
-            {
-              "stepNumber": 1,
-              "description": "Action details",
-              "inputData": "",
-              "expectedOutcome": "Result details"
-            }
-          ],
-          "label": "Functional",
-          "priority": "High",
-          "status": "Draft",
-          "executionMinutes": "5",
-          "caseFolder": "Module Name",
-          "testCategory": "Regression"
+          "id": "TC_001",
+          "summary": "...",
+          "preConditions": "...",
+          "steps": "1. ...\\n2. ...",
+          "expectedResult": "...",
+          "priority": "P1"
         }
       ]
     }
-    
-    CRITICAL: 
-    - "inputData" field MUST BE an empty string "".
-    - Do NOT include any markdown formatting. Return RAW JSON only.
   `;
 
-  // Handle Screenshots (Optimized for Gemini if supported in future, currently text-only description passed usually)
-  // But if screenshots are actual images provided to this function, we need to handle them.
-  // The current UI seems to pass screenshots as an object/array? 
-  // Looking at signature: (userStory, testCaseId, screenshots)
-  // If screenshots contain base64, Gemini supports it!
-  // Let's construct message carefully.
-
-  let userContent = `Generate detailed test cases for this User Story:\n"${userStory}"`;
-
-  // NOTE: Simple implementation for now. If screenshots are needed, we can expand `callAIAPI` to accept complex content parts.
-  // But `userStory` is usually text.
+  const userPrompt = `
+    User Story: ${userStory}
+    ${testCaseId ? `Base ID: ${testCaseId}` : ""}
+    ${screenshots && screenshots.length > 0 ? `Context from Screenshots: ${screenshots.join(", ")}` : ""}
+    
+    Generate the JSON following the standards.
+  `;
 
   try {
     const responseText = await callAIAPI([
       { role: "system", content: systemPrompt },
-      { role: "user", content: userContent }
+      { role: "user", content: userPrompt }
     ]);
 
     const cleanText = responseText.replace(/^```json/, '').replace(/^```/, '').replace(/```$/, '').trim();
@@ -185,7 +196,7 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
 
 import { KNOWLEDGE_BASE } from './knowledgeBase';
 
-export const chatWithAI = async (contextData, userInstructions, contextType = "test-cases") => {
+export const chatWithAI = async (contextData, userInstructions, contextType = "test-cases", messageHistory = []) => {
   let systemContext = "";
   let dataContext = "";
 
@@ -203,6 +214,7 @@ export const chatWithAI = async (contextData, userInstructions, contextType = "t
       Your capability:
       1. **Chat**: Answer questions about QA, testing, or general topics.
       2. **Refine**: Modify the provided Test Cases based on instructions.
+      3. **Memorize**: If the user gives a permanent rule (e.g., "Always use P0 for login", "Never include wait times"), start your answer with "MEMORY_SAVE: [The Rule]" on a new line.
 
       Current Data Structure (Test Cases):
       { "suggestedFilename": "...", "testCases": [...] }
@@ -213,15 +225,6 @@ export const chatWithAI = async (contextData, userInstructions, contextType = "t
         "message": "Your conversational response here.",
         "updatedData": null | { ... new data matching the structure ... }
       }
-
-      - If the user says "Hi", "Hello", or asks a question WITHOUT requesting changes:
-        - Set "message" to a friendly response.
-        - Set "updatedData" to NULL.
-      
-      - If the user asks to MODIFY the test cases (e.g., "Add a step", "Change priority"):
-        - Perform the modification on the "Current Test Cases".
-        - Set "updatedData" to the FULL updated JSON object (including suggestedFilename).
-        - Set "message" to a confirmation (e.g., "I've updated the test cases as requested.").
     `;
     dataContext = `Current Test Cases: ${JSON.stringify(contextData)}`;
   } else if (contextType === "gherkin") {
@@ -233,6 +236,7 @@ export const chatWithAI = async (contextData, userInstructions, contextType = "t
       Your capability:
       1. **Chat**: Answer questions about Gherkin, BDD, or Cucumber.
       2. **Refine**: Modify the provided Feature File text.
+      3. **Memorize**: If the user gives a permanent rule (e.g., "Always use Scenario Outlines"), start your answer with "MEMORY_SAVE: [The Rule]" on a new line.
 
       **CRITICAL OUTPUT RULES**:
       You must ALWAYS return a JSON object with this structure:
@@ -240,9 +244,6 @@ export const chatWithAI = async (contextData, userInstructions, contextType = "t
         "message": "Your conversational response here.",
         "updatedData": null | "The full updated Gherkin text string"
       }
-
-      - If the user chats: "message" = response, "updatedData" = null.
-      - If user modifies: "message" = confirmation, "updatedData" = NEW Gherkin text.
     `;
     dataContext = `Current Feature File:\n${contextData}`;
   } else if (contextType === "step-def") {
@@ -254,6 +255,7 @@ export const chatWithAI = async (contextData, userInstructions, contextType = "t
       Your capability:
       1. **Chat**: Answer questions about Python, Selenium, or coding.
       2. **Refine**: Modify the provided Python code.
+      3. **Memorize**: If the user gives a permanent rule (e.g., "Always use CSS selectors over XPath"), start your answer with "MEMORY_SAVE: [The Rule]" on a new line.
 
       **CRITICAL OUTPUT RULES**:
       You must ALWAYS return a JSON object with this structure:
@@ -263,7 +265,6 @@ export const chatWithAI = async (contextData, userInstructions, contextType = "t
       }
     `;
     dataContext = `Current Code:\n${contextData}`;
-
   }
 
   const systemPrompt = `
@@ -274,21 +275,53 @@ export const chatWithAI = async (contextData, userInstructions, contextType = "t
     - If updatedData is provided, it must be the COMPLETE file/object, not just a diff.
   `;
 
-  const userMessage = `
-    ${dataContext}
-    User Instructions: "${userInstructions}"
-  `;
+  // Prepare messages with history for memory/conversational continuity
+  const apiMessages = [
+    { role: "system", content: systemPrompt }
+  ];
+
+  // Add history (convert from UI role names to API role names)
+  messageHistory.forEach(msg => {
+    apiMessages.push({
+      role: msg.role === 'user' ? 'user' : 'assistant',
+      content: msg.text
+    });
+  });
+
+  // Add the current request
+  apiMessages.push({
+    role: "user",
+    content: `${dataContext}\n\nUser Instructions: "${userInstructions}"`
+  });
 
   try {
-    const responseText = await callAIAPI([
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userMessage }
-    ]);
-
+    const responseText = await callAIAPI(apiMessages, "json_object");
     const cleanText = responseText.replace(/^```json/, '').replace(/^```/, '').replace(/```$/, '').trim();
-    return JSON.parse(cleanText);
+    const result = JSON.parse(cleanText);
+
+    // Filter out memory signals from the user-facing message but capture them
+    if (result.message && result.message.includes("MEMORY_SAVE:")) {
+      const match = result.message.match(/MEMORY_SAVE:\s*(.*)/);
+      if (match) {
+        const rule = match[1];
+        saveMemoryRule(rule);
+        result.message = result.message.replace(/MEMORY_SAVE:.*\n?/, '').trim();
+      }
+    }
+
+    return result;
   } catch (error) {
     throw new Error("AI Chat Failed: " + error.message);
+  }
+};
+
+const saveMemoryRule = (rule) => {
+  if (typeof window === 'undefined') return;
+  const memory = localStorage.getItem('compass_qa_memory');
+  let rules = memory ? JSON.parse(memory) : [];
+  if (!rules.includes(rule)) {
+    rules.push(rule);
+    localStorage.setItem('compass_qa_memory', JSON.stringify(rules));
   }
 };
 
@@ -300,19 +333,31 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
   return { message: result.message };
 };
 
-export const generateCucumberFeature = async (userStory) => {
-  const prompt = `Convert this User Story to a Gherkin Feature File (Cucumber).\nUser Story: "${userStory}"\nOutput ONLY the raw Gherkin text. No markdown.`;
+export const generateFeatureFromCSV = async (csvData, sampleCsv, sampleFeature) => {
+  const prompt = `
+  You are an expert Automation Engineer. Convert the following target CSV into a Gherkin Feature file.
+  
+  ### REFERENCE SAMPLES (Follow this Style Exactly):
+  Sample CSV Input:
+  ${sampleCsv}
+  
+  Sample Feature Output:
+  ${sampleFeature}
+  
+  ### TARGET CSV TO CONVERT:
+  ${csvData}
+  
+  **INSTRUCTIONS**:
+  1. Maintain the exact Gherkin structure and indentation.
+  2. Use Scenario Outlines for data-driven tests.
+  3. Ensure the Feature name and Scenario descriptions are meaningful.
+  4. Return ONLY the Gherkin text. No explanations.
+  `;
 
-  try {
-    return await callAIAPI_Text(prompt);
-  } catch (error) {
-    throw new Error("Failed to generate feature: " + error.message);
-  }
+  return await callAIAPI_Text(prompt);
 };
 
-
-
-export const generateStepDefs = async (featureText) => {
+export const generateStepDefs = async (featureContent) => {
   const prompt = `
   **GOAL**: Create a "Perfect" Selenium Python Step Definition file for the provided Feature File.
   
@@ -329,44 +374,14 @@ export const generateStepDefs = async (featureText) => {
   ### REFERENCE FEATURE (Style Guide)
   ${SAMPLE_FEATURE_REF}
   
-  ### REFERENCE STEP DEFINITION (Style Guide)
+  ### REFERENCE STEP DEFINITION (Code Style Guide)
   ${SAMPLE_STEP_DEF_REF}
   
-  ### INPUT FEATURE FILE (Convert this)
-  ${featureText}
+  ### INPUT FEATURE FILE:
+  ${featureContent}
   
-  **OUTPUT PYTHON CODE ONLY** (No markdown, no explanations)`;
+  **OUTPUT**: Return ONLY the Python code. No markdown boxes, no explanations.
+  `;
 
-  try {
-    return await callAIAPI_Text(prompt);
-  } catch (error) {
-    throw new Error("Failed to generate steps: " + error.message);
-  }
+  return await callAIAPI_Text(prompt);
 };
-
-export const generateFeatureFromCSV = async (csvData, sampleCsv = "", sampleFeature = "") => {
-  let prompt = `I need a feature file with **Scenario Outlines** and **Examples Tables**. 
-  
-  **CRITICAL RULES:**
-  1. **Identify Parameters**: Analyze the input CSV. If a column contains variable data, replace specific values in the steps with parameters like '<inputData>', '<successMsg>'.
-  2. **Scenario Outline**: ALWAYS use 'Scenario Outline' instead of 'Scenario' when parameters are used.
-  3. **Examples Table**: You MUST generate an 'Examples:' table at the end of each scenario.
-     - The table headers MUST match the parameters used in the steps.
-     - The table rows must contain the actual data from the CSV.
-  4. **Structure**: Follow the EXACT structure of the attached reference file style.
-  5. **Completeness**: Do not omit any steps.`;
-
-  if (sampleCsv && sampleFeature) {
-    prompt += `\n\n### STYLE REFERENCE (FOLLOW STRICTLY)\nSample CSV:\n${sampleCsv}\n\nSample Feature (Target Format):\n${sampleFeature}\n\n### END REFERENCE\n`;
-  }
-
-  prompt += `\n\n### TARGET DATA\nConvert this CSV into a Feature File with Scenario Outlines and Examples tables:\n${csvData}\n\nOutput ONLY raw Gherkin text. No markdown.`;
-
-  try {
-    return await callAIAPI_Text(prompt);
-  } catch (error) {
-    throw new Error("Failed to generate feature from CSV: " + error.message);
-  }
-};
-
-
