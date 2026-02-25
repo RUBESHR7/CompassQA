@@ -11,28 +11,64 @@ const callAIAPI = async (messages, responseFormat = "json_object") => {
   try {
     const response = await fetch(SERVER_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        messages: messages,
-        format: responseFormat
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages, format: responseFormat })
     });
 
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || `Server Error (${response.status})`);
+    if (response.ok) {
+      const data = await response.json();
+      return data.content;
     }
-
-    const data = await response.json();
-    return data.content;
-
+    return await clientSideFallback(messages, responseFormat);
   } catch (error) {
-    console.error("Backend AI Request Failed:", error);
-    throw error;
+    return await clientSideFallback(messages, responseFormat);
   }
 };
+
+const clientSideFallback = async (messages, responseFormat) => {
+  const GEMINI_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  const MISTRAL_KEY = process.env.NEXT_PUBLIC_MISTRAL_API_KEY || process.env.VITE_MISTRAL_API_KEY;
+
+  if (!GEMINI_KEY && !MISTRAL_KEY) {
+    throw new Error("AI Services unreachable. Configure API keys in GitHub Secrets.");
+  }
+
+  if (GEMINI_KEY) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_KEY}`;
+      const userMsgs = messages.filter(m => m.role !== 'system');
+      const systemMsg = messages.find(m => m.role === 'system');
+      const body = {
+        contents: userMsgs.map(m => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: m.content }]
+        })),
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: responseFormat === "json_object" ? "application/json" : "text/plain"
+        }
+      };
+      if (systemMsg) body.systemInstruction = { parts: [{ text: systemMsg.content }] };
+      const res = await fetch(url, { method: 'POST', body: JSON.stringify(body) });
+      const data = await res.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    } catch (e) { console.error("Gemini Fallback Failed", e); }
+  }
+
+  if (MISTRAL_KEY) {
+    try {
+      const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${MISTRAL_KEY}` },
+        body: JSON.stringify({ model: 'mistral-small-latest', messages, response_format: { type: responseFormat } })
+      });
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content || "";
+    } catch (e) { console.error("Mistral Fallback Failed", e); }
+  }
+  throw new Error("AI Fallback failed");
+};
+
 
 /**
  * Text-only helper (Wrapper)
