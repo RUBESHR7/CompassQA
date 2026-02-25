@@ -1,7 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    output: 'export',
+    basePath: '/CompassQA',
+    images: {
+        unoptimized: true,
+    },
     reactStrictMode: true,
-    // API keys are read from process.env on the server side
 }
 
 export default nextConfig
