@@ -4,7 +4,21 @@ const nextConfig = {
     reactStrictMode: true,
     poweredByHeader: false,
     eslint: { ignoreDuringBuilds: true },
-    typescript: { ignoreBuildErrors: true }, // Remove X-Powered-By fingerprint
+    typescript: { ignoreBuildErrors: true },
+
+    // Stub Node.js-only modules that exceljs pulls in (rimraf, fstream)
+    // These are only used by exceljs's ZIP reader — not our write path
+    webpack: (config) => {
+        config.resolve.fallback = {
+            ...config.resolve.fallback,
+            rimraf: false,
+            fstream: false,
+            fs: false,
+            path: false,
+            stream: false,
+        };
+        return config;
+    },
 
     // Compiler optimizations for production performance
     compiler: {

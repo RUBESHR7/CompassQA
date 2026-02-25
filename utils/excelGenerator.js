@@ -1,13 +1,17 @@
-import ExcelJS from 'exceljs';
+// Excel export utility — uses ExcelJS for styled exports with merged cells
+// Dynamically imported to avoid SSR bundling issues with Node.js deps
 
 export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
     if (!testCases || testCases.length === 0) return;
 
+    // Dynamic import — only loads in browser, avoids webpack trying to bundle
+    // Node.js-only transitive deps (rimraf, fstream) from exceljs
+    const ExcelJS = (await import('exceljs')).default;
+
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Test Cases');
 
-    // Define columns to match the "Perfect" image structure
-    // Order: ID | Summary | TC Description | Precondition | Step # | Step Desc | Input | Expected | Label | Priority | Status | Time | Folder | Category
+    // Define columns
     worksheet.columns = [
         { header: 'Test Case ID', key: 'id', width: 15 },
         { header: 'Summary', key: 'summary', width: 30 },
@@ -29,8 +33,6 @@ export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
     const headerRow = worksheet.getRow(1);
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-
-    // Header Fill (Blue)
     headerRow.eachCell((cell) => {
         cell.fill = {
             type: 'pattern',
@@ -39,7 +41,6 @@ export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
         };
     });
 
-    // Start adding data from row 2
     let currentRowIndex = 2;
 
     testCases.forEach((tc) => {
@@ -51,7 +52,6 @@ export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
             expectedOutcome: ""
         }];
 
-        // Add each step as a row
         steps.forEach((step) => {
             worksheet.addRow({
                 id: tc.id,
@@ -69,29 +69,24 @@ export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
                 caseFolder: tc.caseFolder,
                 testCategory: tc.testCategory
             });
-            currentRowIndex++; // Increment for next step
+            currentRowIndex++;
         });
 
         const endRow = currentRowIndex - 1;
 
-        // MERGE CELLS for Parent Columns if there are multiple steps
         if (endRow > startRow) {
-            // Columns to merge: id, summary, description, preConditions, label, priority, status, minutes, folder, category
-            // Indices (1-based): 1, 2, 3, 4, 9, 10, 11, 12, 13, 14
             const mergeColIndices = [1, 2, 3, 4, 9, 10, 11, 12, 13, 14];
-
             mergeColIndices.forEach((colIndex) => {
                 try {
-                    // mergeCells(top, left, bottom, right) or (startRow, col, endRow, col)
                     worksheet.mergeCells(startRow, colIndex, endRow, colIndex);
                 } catch (e) {
-                    console.warn(`Failed to merge column ${colIndex} rows ${startRow}-${endRow}`, e);
+                    console.warn(`Failed to merge column ${colIndex}`, e);
                 }
             });
         }
     });
 
-    // Apply global styling (borders, alignment)
+    // Apply borders and alignment
     worksheet.eachRow((row) => {
         row.eachCell((cell) => {
             cell.border = {
@@ -100,18 +95,12 @@ export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
                 bottom: { style: 'thin' },
                 right: { style: 'thin' }
             };
-            cell.alignment = {
-                vertical: 'middle',
-                horizontal: 'left',
-                wrapText: true
-            };
+            cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
         });
     });
 
-    // Generate buffer and download
     const buffer = await workbook.xlsx.writeBuffer();
     const finalFilename = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
-
     const blob = new Blob([buffer], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     });
@@ -124,8 +113,5 @@ export const exportToExcel = async (testCases, filename = 'TestCases.xlsx') => {
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
-
-    setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-    }, 100);
+    setTimeout(() => window.URL.revokeObjectURL(url), 100);
 };
