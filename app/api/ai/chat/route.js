@@ -4,12 +4,12 @@ import axios from 'axios';
 // AI Configuration
 const CONFIG = {
     mistral: {
-        key: process.env.VITE_MISTRAL_API_KEY,
+        key: process.env.NEXT_PUBLIC_MISTRAL_API_KEY || process.env.VITE_MISTRAL_API_KEY,
         endpoint: 'https://api.mistral.ai/v1/chat/completions',
         model: 'mistral-small-latest'
     },
     gemini: {
-        key: process.env.VITE_GEMINI_API_KEY,
+        key: process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY,
         endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent',
         model: 'gemini-2.0-flash-exp'
     }
