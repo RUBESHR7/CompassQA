@@ -1,146 +1,45 @@
-# 🧭 Compass QA - AI-Powered Test Case Generator
+# Compass QA - Next.js Migration
 
-An intelligent test case design generator powered by Google's Gemini AI. Transform user stories into comprehensive test cases with professional Excel exports.
+Welcome to the new and improved Compass QA! We've migrated the entire project from Vite to **Next.js** for better performance, built-in API routes, and a more robust development experience.
 
-## ✨ Features
+## 🚀 Getting Started
 
-- 🤖 AI-powered test case generation using Gemini 2.5 Flash
-- 📊 Professional Excel export with formatted tables
-- 🎨 Beautiful, modern UI with glassmorphism design
-- 📝 Test case refinement with AI chatbot
-- 📜 Project history tracking
-- 🔒 Secure API key management
+1.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
 
-## 🚀 Quick Start
+2.  **Environment Variables:**
+    Ensure you have your API keys in a `.env` file at the root:
+    ```env
+    VITE_GEMINI_API_KEY=your_gemini_key
+    VITE_MISTRAL_API_KEY=your_mistral_key
+    ```
+    *(Note: We kept the `VITE_` prefix for compatibility with existing env files, but Next.js reads these on the server side via `process.env`.)*
 
-### Prerequisites
+3.  **Run Development Server:**
+    ```bash
+    npm run dev
+    ```
 
-- Node.js 20 or higher
-- npm or yarn
-- Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))
+4.  **Build for Production:**
+    ```bash
+    npm run build
+    npm start
+    ```
 
-### Installation
+## 🏗️ Project Structure
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd "Test Case"
-   ```
+-   `/app`: Next.js App Router pages and API routes.
+-   `/components`: Reusable React components (now optimized with `"use client"` where necessary).
+-   `/utils`: Core logic for AI services and Excel generation.
+-   `/public`: Static assets.
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+## ✨ Key Changes
 
-3. **Set up environment variables**
-   ```bash
-   copy .env.example .env
-   ```
-   
-   Then edit `.env` and add your API key:
-   ```env
-   VITE_GEMINI_API_KEY=your-actual-api-key-here
-   ```
+-   **No More Separate Backend:** The Express.js server has been replaced by Next.js API Routes (`/app/api/ai/chat/route.js`).
+-   **Navigation:** Transitioned from `react-router-dom` to the Next.js App Router for seamless routing.
+-   **Styling:** Consolidated into `app/globals.css` using CSS Variables for a premium dark theme.
+-   **Font Optimization:** Using `next/font` for Inter and Outfit typefaces.
 
-4. **Start development server**
-   ```bash
-   npm run dev
-   ```
-
-5. **Open in browser**
-   ```
-   http://localhost:5173
-   ```
-
-## 🔒 Security Setup
-
-**IMPORTANT:** Your API key must be kept secure and never committed to version control.
-
-### Local Development
-
-- API key is stored in `.env` file (gitignored)
-- See [API_KEY_SECURITY.md](./API_KEY_SECURITY.md) for detailed security guide
-
-### GitHub Pages Deployment
-
-1. Go to your repository → Settings → Secrets and variables → Actions
-2. Create a new secret named `VITE_GEMINI_API_KEY`
-3. Paste your API key as the value
-4. Push to `main` branch to trigger deployment
-
-**📚 Read the full security guide:** [API_KEY_SECURITY.md](./API_KEY_SECURITY.md)
-
-## 📦 Project Structure
-
-```
-Test Case/
-├── src/
-│   ├── components/       # React components
-│   ├── utils/           # Utilities (AI service, Excel generator)
-│   ├── styles/          # CSS styles
-│   └── main.jsx         # App entry point
-├── public/              # Static assets
-├── .env                 # Environment variables (gitignored)
-├── .env.example         # Environment template
-└── API_KEY_SECURITY.md  # Security documentation
-```
-
-## 🛠️ Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-
-## 📖 Documentation
-
-- [API Key Security Guide](./API_KEY_SECURITY.md) - Complete security documentation
-- [Security Checklist](./SECURITY_CHECKLIST.md) - Pre-deployment checklist
-- [Project Documentation](./DOCUMENTATION.md) - Feature documentation
-
-## 🔐 Security Checklist
-
-Before deploying or committing code:
-
-- [ ] `.env` file is gitignored
-- [ ] No hardcoded API keys in source code
-- [ ] GitHub Secret is configured for deployment
-- [ ] Ran security audit: `git grep -i "AIza"`
-
-See [SECURITY_CHECKLIST.md](./SECURITY_CHECKLIST.md) for complete checklist.
-
-## 🌐 Deployment
-
-This project is configured for GitHub Pages deployment using GitHub Actions.
-
-**Deployment happens automatically** when you push to the `main` branch.
-
-### First-Time Deployment Setup
-
-1. Enable GitHub Pages in repository settings
-2. Set source to "GitHub Actions"
-3. Add `VITE_GEMINI_API_KEY` secret (see Security Setup above)
-4. Push to `main` branch
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run security checklist
-5. Submit a pull request
-
-## 📄 License
-
-This project is private and proprietary.
-
-## 🆘 Support
-
-For issues or questions:
-- Check [API_KEY_SECURITY.md](./API_KEY_SECURITY.md) for security-related issues
-- Review [SECURITY_CHECKLIST.md](./SECURITY_CHECKLIST.md) for deployment issues
-- Check the troubleshooting section in documentation
-
----
-
-**Built with ❤️ using React, Vite, and Google Gemini AI**
+Enjoy the future of test automation!
