@@ -1,5 +1,7 @@
+'use client';
 import React from 'react';
 import { ArrowRight, Compass, Layers, Zap, Shield } from 'lucide-react';
+
 const LandingPage = ({ onStart }) => {
   return (
     <div className="landing-container">

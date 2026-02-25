@@ -1,6 +1,11 @@
 import './globals.css';
 import { Inter, Outfit } from 'next/font/google';
-import BackgroundWaves from '../components/BackgroundWaves';
+import dynamic from 'next/dynamic';
+
+// Load BackgroundWaves client-side only — it uses canvas/requestAnimationFrame
+const BackgroundWaves = dynamic(() => import('../components/BackgroundWaves'), {
+    ssr: false,
+});
 
 const inter = Inter({
     subsets: ['latin'],
@@ -14,7 +19,7 @@ const outfit = Outfit({
 
 export const metadata = {
     title: 'Compass QA - The Future of Test Automation',
-    description: 'AI-powered test case generation and automation suite.',
+    description: 'AI-powered test case generation and automation suite for QA engineers.',
 };
 
 export default function RootLayout({ children }) {
