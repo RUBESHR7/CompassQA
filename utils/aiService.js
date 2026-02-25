@@ -22,17 +22,17 @@ const getGlobalMemory = () => {
 };
 
 /**
- * Adapter to unify API calls via Node.js Backend with Client-side Fallback
+ * Secure API caller — ALL requests go through the server-side API route.
+ * API keys (GEMINI_API_KEY, MISTRAL_API_KEY) live ONLY on Vercel server.
+ * They are NEVER sent to or accessible from the browser.
  */
 const callAIAPI = async (messages, responseFormat = "json_object") => {
   const memoryContext = getGlobalMemory();
   const enhancedMessages = [...messages];
 
   if (memoryContext) {
-    // Inject memory into the first system message if it exists
     const systemIdx = enhancedMessages.findIndex(m => m.role === 'system');
     const memoryInstruction = `\n\n### LEARNED PREFERENCES (PAST CONVERSATIONS):\n${memoryContext}\nFollow these preferences strictly as they reflect the user's established standards.`;
-
     if (systemIdx !== -1) {
       enhancedMessages[systemIdx].content += memoryInstruction;
     } else {
@@ -40,101 +40,24 @@ const callAIAPI = async (messages, responseFormat = "json_object") => {
     }
   }
 
-  try {
-    const response = await fetch(SERVER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: enhancedMessages, format: responseFormat })
-    });
+  const response = await fetch(SERVER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: enhancedMessages, format: responseFormat })
+  });
 
-    if (response.ok) {
-      const data = await response.json();
-      return data.content;
-    }
-    return await clientSideFallback(enhancedMessages, responseFormat);
-  } catch (error) {
-    return await clientSideFallback(enhancedMessages, responseFormat);
-  }
-};
-
-const clientSideFallback = async (messages, responseFormat) => {
-  const GEMINI_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-  const MISTRAL_KEY = process.env.NEXT_PUBLIC_MISTRAL_API_KEY || process.env.VITE_MISTRAL_API_KEY;
-
-  if (!GEMINI_KEY && !MISTRAL_KEY) {
-    throw new Error("AI Services unreachable. No API keys found. Check your .env file.");
-  }
-
-  // Try multiple Gemini models in order of availability
-  const GEMINI_MODELS = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-pro'];
-
-  if (GEMINI_KEY) {
-    for (const model of GEMINI_MODELS) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`;
-        const userMsgs = messages.filter(m => m.role !== 'system');
-        const systemMsg = messages.find(m => m.role === 'system');
-        const body = {
-          contents: userMsgs.map(m => ({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: m.content }]
-          })),
-          generationConfig: {
-            temperature: 0.2,
-            ...(responseFormat === "json_object" && { responseMimeType: "application/json" })
-          }
-        };
-        if (systemMsg) body.systemInstruction = { parts: [{ text: systemMsg.content }] };
-
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }, // ← was missing!
-          body: JSON.stringify(body)
-        });
-
-        if (!res.ok) {
-          console.warn(`Gemini model ${model} returned ${res.status}, trying next...`);
-          continue;
-        }
-
-        const data = await res.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          console.log(`✅ Gemini (${model}) succeeded`);
-          return text;
-        }
-      } catch (e) {
-        console.warn(`Gemini model ${model} failed:`, e.message);
-      }
-    }
-    console.error("All Gemini models failed. Trying Mistral...");
-  }
-
-  if (MISTRAL_KEY) {
+  if (!response.ok) {
+    let errMsg = `Server error (${response.status})`;
     try {
-      const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${MISTRAL_KEY}` },
-        body: JSON.stringify({
-          model: 'mistral-small-latest',
-          messages,
-          response_format: { type: responseFormat },
-          temperature: 0.2
-        })
-      });
-      if (!res.ok) throw new Error(`Mistral HTTP ${res.status}`);
-      const data = await res.json();
-      const text = data.choices?.[0]?.message?.content;
-      if (text) {
-        console.log(`✅ Mistral succeeded`);
-        return text;
-      }
-    } catch (e) {
-      console.error("Mistral Fallback Failed:", e.message);
-    }
+      const errData = await response.json();
+      errMsg = errData.error || errMsg;
+    } catch { /* ignore parse errors */ }
+    throw new Error(errMsg);
   }
 
-  throw new Error("All AI providers are blocked or unreachable on this network. Please check your API keys or network connection.");
+  const data = await response.json();
+  if (!data.content) throw new Error("AI returned an empty response.");
+  return data.content;
 };
 
 /**

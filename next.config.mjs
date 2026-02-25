@@ -1,12 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    output: 'export',
-    basePath: '/CompassQA',
-    images: {
-        unoptimized: true,
-    },
+    // NO output: 'export' — Vercel runs Next.js natively with API routes
     reactStrictMode: true,
-    poweredByHeader: false,
+    poweredByHeader: false, // Remove X-Powered-By fingerprint
+
+    // Compiler optimizations for production performance
+    compiler: {
+        removeConsole: process.env.NODE_ENV === 'production', // Strip console.logs in prod
+    },
+
+    // Image optimization via Vercel CDN
+    images: {
+        formats: ['image/avif', 'image/webp'],
+        minimumCacheTTL: 60,
+    },
 
     // Enterprise Security Headers
     async headers() {
@@ -27,6 +34,7 @@ const nextConfig = {
                             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
                             "font-src 'self' https://fonts.gstatic.com",
                             "img-src 'self' data: blob:",
+                            // Only allow AI providers — no other external connections
                             "connect-src 'self' https://generativelanguage.googleapis.com https://api.mistral.ai",
                             "frame-ancestors 'none'",
                         ].join('; ')
@@ -44,7 +52,19 @@ const nextConfig = {
                 source: '/api/(.*)',
                 headers: [
                     { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
+                    { key: 'X-Content-Type-Options', value: 'nosniff' },
                 ],
+            },
+        ];
+    },
+
+    // Redirect /CompassQA paths to root (for users coming from old GitHub Pages link)
+    async redirects() {
+        return [
+            {
+                source: '/CompassQA/:path*',
+                destination: '/:path*',
+                permanent: true,
             },
         ];
     },

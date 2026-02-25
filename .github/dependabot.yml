@@ -1,0 +1,27 @@
+version: 2
+updates:
+  # Scan npm dependencies weekly for CVEs
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "security"
+      - "dependencies"
+    # Auto-merge patch updates (low risk)
+    groups:
+      patch-updates:
+        patterns: ["*"]
+        update-types: ["patch"]
+
+  # Scan GitHub Actions for outdated versions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "github-actions"
+      - "dependencies"
