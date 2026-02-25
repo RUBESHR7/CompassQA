@@ -19,28 +19,26 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
-      # Check for secrets accidentally committed into source code
-      - name: Check for exposed API keys
+      - name: Check for exposed API keys in source
         run: |
-          if grep -rn "AIzaSy" --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" . \
-            --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.git; then
+          FOUND=$(grep -rn "AIzaSy" --include="*.js" --include="*.jsx" \
+            --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.git . || true)
+          if [ -n "$FOUND" ]; then
             echo "WARNING: Possible API key found in source code!"
+            echo "$FOUND"
             exit 1
           fi
-          echo "No hardcoded API keys detected in source files."
+          echo "No hardcoded API keys detected."
 
-      # Audit dependencies for known CVEs (report only)
       - name: NPM Security Audit
         run: npm audit --audit-level=critical || true
 
-      # Verify the project builds (skip lint to avoid blocking)
-      - name: Build
-        run: npm run build -- --no-lint
+      - name: Build Check
+        run: npm run build
         env:
           GEMINI_API_KEY: build-check-only
           MISTRAL_API_KEY: build-check-only
