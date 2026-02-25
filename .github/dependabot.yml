@@ -1,6 +1,5 @@
 version: 2
 updates:
-  # Scan npm dependencies weekly for CVEs
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -11,13 +10,18 @@ updates:
     labels:
       - "security"
       - "dependencies"
-    # Auto-merge patch updates (low risk)
+    ignore:
+      # ESLint 10 breaks eslint-config-next — ignore major upgrades
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      # Next.js major upgrades need manual review
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
     groups:
       patch-updates:
         patterns: ["*"]
         update-types: ["patch"]
 
-  # Scan GitHub Actions for outdated versions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
