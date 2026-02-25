@@ -1,6 +1,7 @@
 // AI Service for Compass QA (Supports Gemini & Mistral)
 
 import { SAMPLE_FEATURE_REF, SAMPLE_STEP_DEF_REF } from './sampleData';
+import { saveToKnowledgeStore, retrieveRelevantContext } from './knowledgeStore';
 
 const SERVER_URL = '/api/ai/chat';
 
@@ -116,6 +117,9 @@ const callAIAPI_Text = async (prompt) => {
 // ------------------------------------------------------------------
 
 export const generateTestCases = async (userStory, testCaseId, screenshots) => {
+  // Retrieve relevant past test cases for context (RAG)
+  const pastContext = retrieveRelevantContext(userStory, ['test-case', 'feature']);
+
   const systemPrompt = `
     You are an expert QA Automation Engineer acting as the engine for "Compass QA".
     Your goal is to generate "Perfect" detailed, structured test cases from User Stories.
@@ -127,6 +131,11 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
     4.  **Priority**: Use 'P0 (Critical)', 'P1 (High)', 'P2 (Medium)', or 'P3 (Low)'.
     5.  **Test Data**: If sensitive, use placeholders like <username> or <password>.
     6.  **Edge Cases**: Include at least one negative or boundary value test case.
+    7.  **CRITICAL - Consistency**: If past test cases are provided below, reuse the EXACT same:
+        - Pre-condition text (especially login steps)
+        - Navigation step wording
+        - Page/screen names and terminology
+        This ensures all test cases across the project are consistent.
 
     ### OUTPUT FORMAT:
     You MUST return a JSON object with this EXACT structure:
@@ -143,6 +152,7 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
         }
       ]
     }
+    ${pastContext}
   `;
 
   const userPrompt = `
@@ -185,6 +195,9 @@ export const generateTestCases = async (userStory, testCaseId, screenshots) => {
       }
       return { ...tc, id: newId };
     });
+
+    // Save to knowledge store for future context
+    saveToKnowledgeStore('test-case', { testCases: processedCases, suggestedFilename: filename }, userStory.substring(0, 80));
 
     return { testCases: processedCases, suggestedFilename: filename };
 
@@ -334,54 +347,72 @@ export const refineTestCases = async (currentTestCases, userInstructions) => {
 };
 
 export const generateFeatureFromCSV = async (csvData, sampleCsv, sampleFeature) => {
+  // Retrieve relevant past feature files for context (RAG)
+  const pastContext = retrieveRelevantContext(csvData, ['feature', 'step-def']);
+
   const prompt = `
-  You are an expert Automation Engineer. Convert the following target CSV into a Gherkin Feature file.
+  You are an expert Automation Engineer. Convert the following target CSV into a perfect Gherkin Feature file.
   
-  ### REFERENCE SAMPLES (Follow this Style Exactly):
+  ### REFERENCE STYLE SAMPLE (Follow this Style Exactly):
   Sample CSV Input:
   ${sampleCsv}
   
   Sample Feature Output:
   ${sampleFeature}
   
+  ${pastContext}
+  
   ### TARGET CSV TO CONVERT:
   ${csvData}
   
-  **INSTRUCTIONS**:
-  1. Maintain the exact Gherkin structure and indentation.
-  2. Use Scenario Outlines for data-driven tests.
-  3. Ensure the Feature name and Scenario descriptions are meaningful.
-  4. Return ONLY the Gherkin text. No explanations.
+  **INSTRUCTIONS (100% ACCURACY REQUIRED)**:
+  1. Maintain the exact Gherkin structure and indentation from the style sample.
+  2. Use Scenario Outlines with Examples for data-driven tests.
+  3. If past feature files are provided above, reuse the EXACT same:
+     - Login step text (e.g., "Login to the Cold Compass application with valid credentials")
+     - Navigation step wording (e.g., "Navigate to Administration -> Access Item Management Tab") 
+     - Tag format (@regression @feature-name @amcc-XXX)
+  4. Return ONLY the Gherkin text. No explanations, no markdown.
   `;
 
-  return await callAIAPI_Text(prompt);
+  const result = await callAIAPI_Text(prompt);
+  // Save the generated feature file to knowledge store
+  saveToKnowledgeStore('feature', result, csvData.substring(0, 80));
+  return result;
 };
 
 export const generateStepDefs = async (featureContent) => {
+  // Retrieve relevant past step definitions for context (RAG)
+  const pastContext = retrieveRelevantContext(featureContent, ['step-def']);
+
   const prompt = `
   **GOAL**: Create a "Perfect" Selenium Python Step Definition file for the provided Feature File.
   
   **STRICT REQUIREMENTS (100% ACCURACY)**:
-  1. **Structure**: You MUST follow the EXACT structure, imports, and coding style of the **REFERENCE STEP DEFINITION** provided below. No deviations.
-  2. **Content**: Convert **ALL** steps from the Input Feature File into Python step definitions. Do not miss any.
-  3. **Imports**: Use the same import style (e.g., 'from business_components...', 'from object_repository...'). 
-     - *Note*: You may infer logical names for new components/pages if they don't exist in the sample, but keep the pattern.
-  4. **Data Handling**: 
-     - Use 'json_data' and 'load_test_data_from_json'.
-     - Use '@pytest.mark.parametrize' for steps with placeholder data (e.g., '<inputData>').
-  5. **Accuracy**: Ensure the code is syntactically correct and logically matches the BDD steps.
+  1. **Structure**: You MUST follow the EXACT structure, imports, and coding style of the REFERENCE STEP DEFINITION below.
+  2. **Content**: Convert ALL steps from the Feature File into Python step definitions. Do not miss any step.
+  3. **Imports**: Use the same import pattern:
+     - from business_components.web_components.XxxPage import xxx_function
+     - from object_repository.pages.Module.SubModule.XxxPage import XxxPage
+     - from utilities.helper import generate_random_number, load_test_data_from_json
+  4. **Data Handling**: Use json_data with load_test_data_from_json. Use @pytest.mark.parametrize for <placeholders>.
+  5. **CRITICAL - No Duplication**: If past step definitions are provided below, DO NOT re-create any function
+     that already exists (e.g., login_to_application). Instead, those steps are already handled — skip them.
+  6. **Locators**: Use Page Object pattern. Reference locators from the appropriate Page class.
   
-  ### REFERENCE FEATURE (Style Guide)
-  ${SAMPLE_FEATURE_REF}
-  
-  ### REFERENCE STEP DEFINITION (Code Style Guide)
+  ### REFERENCE STEP DEFINITION (Code Style - Follow Exactly)
   ${SAMPLE_STEP_DEF_REF}
+  
+  ${pastContext}
   
   ### INPUT FEATURE FILE:
   ${featureContent}
   
-  **OUTPUT**: Return ONLY the Python code. No markdown boxes, no explanations.
+  **OUTPUT**: Return ONLY the Python code. No markdown, no explanations.
   `;
 
-  return await callAIAPI_Text(prompt);
+  const result = await callAIAPI_Text(prompt);
+  // Save to knowledge store for future step def generation
+  saveToKnowledgeStore('step-def', result, featureContent.substring(0, 80));
+  return result;
 };
